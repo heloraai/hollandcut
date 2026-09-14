@@ -27,7 +27,7 @@ def ff(*a):
 run([sys.executable, 'preflight.py'])
 bundle = os.path.join(SP, 'bundle')
 shutil.rmtree(bundle, ignore_errors=True)
-run([NPX, 'remotion', 'bundle', 'src/index.ts', f'--out-dir={bundle}'], cwd='remotion', capture_output=True)
+run([NPX, 'remotion', 'bundle', 'src/index.ts', f'--out-dir={bundle}'], cwd='remotion')
 print('bundle ok')
 raw, log = os.path.join(SP, f'{V}_render.mp4'), os.path.join(SP, f'render_{V}.log')
 if os.path.exists(raw):
