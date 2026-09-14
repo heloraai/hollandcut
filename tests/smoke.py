@@ -40,7 +40,7 @@ def speak(text, stem):
     sys.exit('需要 espeak-ng（Linux：sudo apt install espeak-ng）或 macOS 自带的 say')
 
 
-W = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else tempfile.mkdtemp(prefix='th16x9_smoke_'))
+W = os.path.abspath(sys.argv[1] if len(sys.argv) > 1 else tempfile.mkdtemp(prefix='hollandcut_smoke_'))
 os.makedirs(W, exist_ok=True)
 os.environ['WHISPER_LANG'] = 'en'
 parts = []

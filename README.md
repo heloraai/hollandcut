@@ -1,6 +1,6 @@
-# talking-head-16x9
+# hollandcut
 
-[![smoke](https://github.com/heloraai/talking-head-16x9/actions/workflows/smoke.yml/badge.svg)](https://github.com/heloraai/talking-head-16x9/actions/workflows/smoke.yml)
+[![smoke](https://github.com/heloraai/hollandcut/actions/workflows/smoke.yml/badge.svg)](https://github.com/heloraai/hollandcut/actions/workflows/smoke.yml)
 
 一个 **Claude Code skill**（Codex 也能用）：把连续录制的中文口播，剪成 16:9 金色包装成片。
 
@@ -45,8 +45,8 @@ agent 第一步只出「素材体检 + 画面结构提案 + 缺图清单」，**
 ### 1. 把仓库放进 skill 目录
 
 ```bash
-git clone https://github.com/heloraai/talking-head-16x9 ~/.claude/skills/talking-head-16x9
-# Codex 用户：克隆到 ~/.codex/skills/talking-head-16x9
+git clone https://github.com/heloraai/hollandcut ~/.claude/skills/hollandcut
+# Codex 用户：克隆到 ~/.codex/skills/hollandcut
 ```
 
 ### 2. 装依赖
@@ -80,7 +80,7 @@ curl -L -o ~/.cache/whisper/ggml-large-v3.bin https://huggingface.co/ggerganov/w
 ### 4. 体检
 
 ```bash
-python3 ~/.claude/skills/talking-head-16x9/scripts/tools.py
+python3 ~/.claude/skills/hollandcut/scripts/tools.py
 ```
 
 ```
@@ -98,7 +98,7 @@ python3 ~/.claude/skills/talking-head-16x9/scripts/tools.py
 有 ✗ 的项，体检会直接给出你这个系统的安装命令。全 ✓ 后，想确认整条流水线能跑通，再跑一次冒烟测试（合成一段英文口播 → 出片；需要 macOS 自带的 `say` 或 Linux 的 `espeak-ng`）：
 
 ```bash
-python3 ~/.claude/skills/talking-head-16x9/tests/smoke.py
+python3 ~/.claude/skills/hollandcut/tests/smoke.py
 ```
 
 ## 使用

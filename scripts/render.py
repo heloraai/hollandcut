@@ -7,7 +7,7 @@ from tools import FFMPEG, FFPROBE
 
 V = sys.argv[1] if len(sys.argv) > 1 else 'v1'
 NAME = re.sub(r'^edit_', '', os.path.basename(os.getcwd()))
-SP = os.environ.get('SCRATCH') or os.path.join(tempfile.gettempdir(), f'th16x9_{NAME}')
+SP = os.environ.get('SCRATCH') or os.path.join(tempfile.gettempdir(), f'hollandcut_{NAME}')
 NPX = shutil.which('npx') or 'npx'
 os.makedirs(SP, exist_ok=True)
 os.makedirs('out', exist_ok=True)

@@ -1,9 +1,9 @@
 ---
-name: talking-head-16x9
-description: 把连续录制的中文口播（手机 / 相机横屏，1–N 段 .mov/.mp4）剪成 16:9 金色包装成片——去重录保气口、描边字幕 + 金色关键词、贯穿章节标签、贴纸词条、脑图板、全屏接管对比、真实截图大图（人物自动缩左下圆窗）、箭头链、大字数据，Remotion 渲染 1080p。触发词：「按这个水准剪」「talking-head 16:9」「剪一下这条口播」「做成片（横屏）」。**先出素材体检 + 画面结构提案 + 缺图清单让用户确认，再开工。**
+name: hollandcut
+description: hollandcut：把连续录制的中文口播（手机 / 相机横屏，1–N 段 .mov/.mp4）剪成 16:9 金色包装成片——去重录保气口、描边字幕 + 金色关键词、贯穿章节标签、贴纸词条、脑图板、全屏接管对比、真实截图大图（人物自动缩左下圆窗）、箭头链、大字数据，Remotion 渲染 1080p。触发词：「hollandcut」「按这个水准剪」「剪一下这条口播」「做成片（横屏）」「talking-head 16:9」。**先出素材体检 + 画面结构提案 + 缺图清单让用户确认，再开工。**
 ---
 
-# talking-head-16x9
+# hollandcut
 
 验收标准来自一条口播成片的 11 轮逐版返工。**硬规则全在 [references/standards.md](references/standards.md)**，动效词汇在 [references/motion-vocabulary.md](references/motion-vocabulary.md)，开工前必读两份。下文 `<SKILL>` = 本 skill 所在目录。
 
