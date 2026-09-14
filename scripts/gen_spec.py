@@ -181,4 +181,11 @@ print(f"图形覆盖 {tot:.1f}s / {dur:.1f}s = {tot/dur*100:.0f}%   板数 {len(
 warn = [f"板{x['no']}" for x in G if (x['end']-x['start']) < 6] + \
        [f"板{x['no']}节点过密" for x in G if len(x['nodes']) > 7]
 if tot/dur > 0.60: warn.append(f"覆盖 {tot/dur*100:.0f}% > 60%")
+for x in G:
+    cids = {n['id'] for n in x['nodes'] if n.get('conclusion')}
+    orphan = [n['id'] for n in x['nodes'] if n.get('parent') in cids]
+    assert not orphan, f"板{x['no']}: 结论节点的子节点 {orphan} 不会被布局——父节点别设 concl，把结论挪到叶子"
+    rfs = [n['rf'] for n in x['nodes']]
+    if rfs != sorted(rfs):
+        warn.append(f"板{x['no']}节点没按台词时序排（reveal 单调递增，早说的会被排后面的节点推迟入场）")
 print("⚠ " + "；".join(warn) if warn else "✓ 结构体检通过")

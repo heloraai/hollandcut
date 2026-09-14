@@ -17,9 +17,12 @@ export const Takeover: React.FC<{group: any; io: number}> = ({group, io}) => {
   const {fps} = useVideoConfig();
   const F = (s: number) => Math.round(s * T.FPS);
   const t0 = F(group.fin[0]);
-  const rf = (id: string) =>
-    F(group.nodes.find((n: any) => n.id === id).rf) - t0;
   const node = (id: string) => group.nodes.find((n: any) => n.id === id);
+  // 缺节点（如没有 b1/b2/f1-f3 的接管板）→ 永不入场，保证 pop() 的 hook 数量恒定
+  const rf = (id: string) => {
+    const n = node(id);
+    return n ? F(n.rf) - t0 : 10 ** 9;
+  };
 
   const pop = (id: string, lead = 0) => {
     const local = frame - rf(id) - lead;
