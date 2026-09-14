@@ -13,7 +13,7 @@ LINES = ["Today I will show you three simple ideas.", "First, build the product 
          "Second, publish content every single day.", "Third, check the numbers every week.",
          "That is the whole system. See you next time."]
 STRUCTURE = '''
-g(1, "三个简单的想法", "bl", "three", "system", [
+g(1, "三个简单的想法", "bl", "simple", "system", [
     N("r", "三个简单的想法", None, kind="hero"),
     N("a", "产品只做一次", "product", "r"),
     N("b", "内容每天都发", "content", "r"),
