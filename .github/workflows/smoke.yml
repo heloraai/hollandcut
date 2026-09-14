@@ -1,0 +1,37 @@
+name: smoke
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  ubuntu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: 系统依赖
+        run: sudo apt-get update && sudo apt-get install -y ffmpeg espeak-ng fonts-noto-cjk
+      - name: whisper.cpp + 小模型
+        run: |
+          git clone --depth 1 --branch v1.9.4 https://github.com/ggml-org/whisper.cpp "$RUNNER_TEMP/wcpp"
+          cmake -S "$RUNNER_TEMP/wcpp" -B "$RUNNER_TEMP/wcpp/build" -DCMAKE_BUILD_TYPE=Release
+          cmake --build "$RUNNER_TEMP/wcpp/build" -j 4 --target whisper-cli
+          echo "$RUNNER_TEMP/wcpp/build/bin" >> "$GITHUB_PATH"
+          mkdir -p ~/.cache/whisper
+          curl -sSfL -o ~/.cache/whisper/ggml-base.en.bin https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.en.bin
+      - name: 环境体检
+        run: python3 scripts/tools.py
+        env:
+          WHISPER_MODEL: ~/.cache/whisper/ggml-base.en.bin
+      - name: 冒烟测试（合成口播 → 完整流水线 → 出片）
+        run: python3 tests/smoke.py "$RUNNER_TEMP/smoke"
+        env:
+          WHISPER_MODEL: ~/.cache/whisper/ggml-base.en.bin
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-output
+          path: ${{ runner.temp }}/smoke/edit_smoke/out/
