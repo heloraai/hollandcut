@@ -11,7 +11,8 @@
   plan/probe.md           分辨率 / 旋转 / 镜像抽帧 / 时长
   plan/transcript.md      带时间码的全文（重录候选已标 ⟲）
   plan/contact_{i}.png    每段 12 帧缩略
-之后由 Claude 据此写 plan/proposal.md（章节 / 板 / 叠加层 / 需要补的图），等用户确认再进入阶段 1。
+  plan/proposal.md         提案模板（效果强度 / 动效位置 / 缺图清单 / 体检 / 不确定项），由 Claude 填好发给用户
+之后等用户确认提案，再进入阶段 1。
 """
 import argparse, json, os, re, shutil, subprocess
 
@@ -19,7 +20,7 @@ from tools import FFMPEG as FF, FFPROBE as FP, speech_spans, transcribe
 
 SKILL = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STEPS = ("tools.py", "detect.py", "build_edl.py", "build_recut.py", "build_cues.py", "layers.py",
-         "gen_spec.py", "preflight.py", "render.py", "spike_scan.py")
+         "gen_spec.py", "preflight.py", "render.py", "spike_scan.py", "webshot.py")
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--name", required=True)
@@ -78,7 +79,10 @@ for f in STEPS:
     shutil.copy2(f"{SKILL}/scripts/{f}", f"{out}/{f}")
 for f in ("edl_rules.py", "cue_rules.py"):
     if not os.path.exists(f"{out}/{f}"): shutil.copy2(f"{SKILL}/templates/{f}", f"{out}/{f}")
+if not os.path.exists(f"{out}/plan/proposal.md"):
+    shutil.copy2(f"{SKILL}/templates/proposal.md", f"{out}/plan/proposal.md")
 nm = os.environ.get("REMOTION_NODE_MODULES", "")
 if nm and os.path.isdir(nm) and not os.path.exists(f"{out}/remotion/node_modules"):
     os.symlink(nm, f"{out}/remotion/node_modules")
-print(f"\n项目目录 {out}\n下一步：Claude 读 plan/transcript.md + plan/contact_*.png，写 plan/proposal.md，等用户确认。")
+print(f"\n项目目录 {out}\n下一步：Claude 读 plan/transcript.md + plan/contact_*.png，填 plan/proposal.md"
+      "（先问：效果强度 lite/pro/max、动效位置、缺图），发给用户确认后再剪。")

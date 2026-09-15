@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """阶段 3：预检 → 打包 → 渲染 → 母版音轨换回 → QA → SRT → contact sheet → 交付到 ~/Downloads/<项目>_<版本>/
 用法（项目目录里）：python3 render.py v1
-环境变量：CONCURRENCY（默认 1，见 standards 第 9 条）、SCRATCH（渲染暂存目录，默认系统临时目录）"""
+环境变量：CONCURRENCY（默认 1，见 standards 第 9 条）、SCRATCH（渲染暂存目录，默认系统临时目录）、DELIVER（交付目录，默认 ~/Downloads）"""
 import json, os, re, shutil, subprocess, sys, tempfile, time
 from tools import FFMPEG, FFPROBE
 
@@ -34,7 +34,7 @@ if os.path.exists(raw):
     os.remove(raw)
 with open(log, 'w') as lf:
     r = subprocess.run([NPX, 'remotion', 'render', bundle, 'Shen', raw, f'--concurrency={os.environ.get("CONCURRENCY", "1")}',
-                        '--offthreadvideo-cache-size-in-bytes=536870912'], cwd='remotion', stdout=lf, stderr=subprocess.STDOUT)
+                        '--offthreadvideo-cache-size-in-bytes=536870912', '--timeout=120000'], cwd='remotion', stdout=lf, stderr=subprocess.STDOUT)
 if r.returncode or not os.path.isfile(raw):
     sys.exit(f'✗ 渲染失败（没有产出 {raw}），日志：{log}')
 if shutil.which('pgrep'):   # 渲染进程没退出会再起 ffmpeg 覆写产物
@@ -63,8 +63,14 @@ if subprocess.run([sys.executable, 'spike_scan.py', OUT]).returncode:
 
 # contact sheet：每块板 / 大图 / 链 / 成对贴纸各抽一帧，5 列
 s = json.load(open('remotion/public/spec.json'))
-shots = sorted([g['end'] - 1.0 for g in s['groups']] + [x['start'] + 1.5 for x in s['shows']] +
-               [c['end'] - 0.5 for c in s['chains']] + [p['end'] - 0.4 for p in s['pairs']])[:20]
+shots = ([g['end'] - 1.0 for g in s['groups']] + [x['start'] + 1.5 for x in s['shows']] +
+         [c['end'] - 0.5 for c in s['chains']] + [p['end'] - 0.4 for p in s['pairs']] +
+         [t['start'] + 1.6 for t in s.get('titles') or []] +
+         ([s['opening']['boom'] - 1.2] if s.get('opening') else []) +
+         ([s['endcard']['end'] - 1.0] if s.get('endcard') else []))
+shots = sorted(shots + [s['duration'] * (k + 0.5) / 10 for k in range(max(0, 10 - len(shots)))])   # lite 图形少：均匀补帧
+if len(shots) > 20:
+    shots = [shots[round(k * (len(shots) - 1) / 19)] for k in range(20)]
 paths = []
 for i, t in enumerate(shots):
     p = os.path.join(SP, f'qc_{i:02d}.png')
@@ -89,7 +95,7 @@ srt = OUT[:-4] + '.srt'
 cues = json.load(open('build/cues.json'))
 open(srt, 'w', encoding='utf-8').write('\n'.join(
     f"{i}\n{ts(c['start'])} --> {ts(c['end'])}\n{c['text'].replace('【', '').replace('】', '')}\n" for i, c in enumerate(cues, 1)))
-D = os.path.join(os.path.expanduser('~'), 'Downloads', f'{NAME}_{V}')
+D = os.path.join(os.environ.get('DELIVER') or os.path.join(os.path.expanduser('~'), 'Downloads'), f'{NAME}_{V}')
 os.makedirs(D, exist_ok=True)
 for f in (OUT, srt, sheet):
     if os.path.exists(f):

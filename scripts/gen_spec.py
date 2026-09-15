@@ -10,9 +10,11 @@ structure.py 里可用的助手（由本引擎注入）：
   N(id, label, anchor, parent, kind, sub, danger, concl)   节点；kind ∈ hero/node/pill/circle
   SHOT(id, src, ar, w, cap, anchor, parent)                 板内截图节点
   chip(t, anchor, style) / link(t, anchor, tone)            词条 / 链条项
-  show_img(src, w, ar, cap, a, b) / show_scroll(...) / stat(...)   单独展示层
+  show_img(src, w, ar, cap, a, b) / show_scroll(...) / stat(..., gauge=False)   单独展示层（gauge = 圆环仪表盘）
+  hook_editor(...) / title(...) / endcard(...)             max 档招牌时刻：开场剪辑器 / 大字散射标题 / 结尾 CTA 卡
   dur                                                        母版时长
-structure.py 需要定义：CH, CHIPS, CHAINS, PAIRS, MARKS, SHOWS，可选 BOX（{板号: {"x0":...}}）
+structure.py 需要定义：TIER（lite / pro / max，默认 pro）、CH, CHIPS, CHAINS, PAIRS, MARKS, SHOWS；
+可选 BOX（{板号: {"x0":...}}）、SUBS；max 档可选 OPENING / TITLES / ENDCARD
 """
 import json, math, sys, os
 from tools import duration
@@ -67,18 +69,64 @@ def show_scroll(src, w, iw, ih, vh, cap, a, b):
 def show_video(src, w, ar, cap, a, b, full=False, pip="bl"):
     return {"type": "video", "src": src, "w": w, "ar": ar, "cap": cap, "full": full,
             "pip": pip, "start": A(a), "end": AE(b) + 0.9}
-def stat(num, label, a, b, prefix="", suffix=""):
-    return {"type": "stat", "num": num, "prefix": prefix, "suffix": suffix, "label": label,
-            "start": A(a), "end": AE(b) + 1.6}
+def stat(num, label, a, b, prefix="", suffix="", gauge=False):
+    d = {"type": "stat", "num": num, "prefix": prefix, "suffix": suffix, "label": label,
+         "start": A(a), "end": AE(b) + 1.6}
+    if gauge: d["gauge"] = True   # 圆环仪表盘：num 按 0–100 画弧
+    return d
+
+# ---- max 档招牌时刻（全部台词锚点）----
+def hook_editor(title, ui, badge, steps, boom, stamp=None, end=None):
+    """开场剪辑器：ui 界面组装 / badge=(字, 锚点) 徽章砸落 / steps=[(字, 锚点)]×1–4 步骤灯 /
+    stamp=(字, 锚点) 右上红章（可选）/ boom 炸开的锚点 / end 收尾锚点（默认炸开后 0.93s）"""
+    o = {"title": title, "ui": A(ui), "badge": {"t": badge[0], "at": A(badge[1])},
+         "steps": [{"t": t, "at": A(x)} for t, x in steps], "boom": A(boom),
+         "stamp": {"t": stamp[0], "at": A(stamp[1])} if stamp else None}
+    o["end"] = round(AE(end) + 0.3 if end else o["boom"] + 0.93, 3)
+    return o
+def title(text, a, b, gold_from=None, stamp=None, pills=()):
+    """大字散射标题：text 第 gold_from 个字符起变金 / stamp=(字, 锚点) 金印章 / pills=[(字, 锚点)] ≤2 个分列两侧"""
+    return {"text": text, "goldFrom": len(text) if gold_from is None else gold_from,
+            "start": round(A(a) - LEAD, 3), "end": round(AE(b) + 0.1, 3),
+            "stamp": {"t": stamp[0], "at": round(A(stamp[1]) - LEAD, 3)} if stamp else None,
+            "pills": [{"t": t, "at": round(A(x) - LEAD, 3)} for t, x in pills]}
+def endcard(name, tagline, url, a, b, badge="已开源"):
+    """结尾 CTA 卡：a 出现的锚点、b 收尾的锚点；url 打字机滚出（可空）"""
+    return {"name": name, "tagline": tagline, "url": url, "badge": badge,
+            "start": round(A(a) - LEAD, 3), "end": round(min(AE(b) - 0.1, dur - 0.3), 3)}
 
 # ---- 执行结构文件 ----
 ns = dict(A=A, AE=AE, A_after=A_after, N=N, SHOT=SHOT, g=g, chip=chip, link=link,
-          show_img=show_img, show_scroll=show_scroll, show_video=show_video, stat=stat, dur=dur, dict=dict, min=min, max=max)
+          show_img=show_img, show_scroll=show_scroll, show_video=show_video, stat=stat, dur=dur, dict=dict, min=min, max=max,
+          hook_editor=hook_editor, title=title, endcard=endcard)
 exec(open(sys.argv[1] if len(sys.argv) > 1 else 'structure.py', encoding='utf-8').read(), ns)
 CH, CHIPS = ns['CH'], ns.get('CHIPS', [])
 CHAINS, PAIRS, MARKS, SHOWS = ns.get('CHAINS', []), ns.get('PAIRS', []), ns.get('MARKS', []), ns.get('SHOWS', [])
 BOX = ns.get('BOX', {})
 SUBS = ns.get('SUBS', True)
+
+# ---- 档位：lite / pro / max ----
+TIER = ns.get('TIER', 'pro')
+assert TIER in ('lite', 'pro', 'max'), f"TIER 只能是 lite / pro / max，现在是 {TIER!r}"
+OPENING, TITLES, ENDCARD = ns.get('OPENING'), ns.get('TITLES', []), ns.get('ENDCARD')
+if TIER != 'max':
+    assert not (OPENING or TITLES or ENDCARD), "OPENING / TITLES / ENDCARD 是 max 档的招牌时刻：改 TIER = 'max'，或删掉它们"
+if TIER == 'lite':
+    assert not G, "lite 档人物全程全屏、不放脑图板：删掉 g(...)，或改 TIER = 'pro'"
+    heavy = [x.get('src') for x in SHOWS if x['type'] != 'stat']
+    assert not heavy, f"lite 档不放大图 / 视频卡 {heavy}：要放图请改 TIER = 'pro'"
+for t in TITLES:
+    assert len(t['pills']) <= 2, f"大字「{t['text']}」：pills 最多 2 个（分列金章两侧）"
+    assert t['start'] < t['end'], f"大字「{t['text']}」起止锚点反了：{t['start']}s → {t['end']}s"
+    inner = ([t['stamp']['at']] if t['stamp'] else []) + [p['at'] for p in t['pills']]
+    assert all(t['start'] <= x < t['end'] for x in inner), f"大字「{t['text']}」的金章 / 药丸锚点要落在标题起止之间"
+if ENDCARD:
+    assert ENDCARD['start'] < ENDCARD['end'], f"结尾卡起止锚点反了：{ENDCARD['start']}s → {ENDCARD['end']}s"
+if OPENING:
+    order = [OPENING['ui'], OPENING['badge']['at']] + [s['at'] for s in OPENING['steps']] + [OPENING['boom']]
+    assert order == sorted(order), "hook_editor 的锚点要按台词顺序：ui ≤ badge ≤ steps ≤ boom"
+    assert OPENING['end'] > OPENING['boom'], "hook_editor 的 end 锚点要在 boom 之后（不写 end 默认炸开后 0.93s）"
+    assert 1 <= len(OPENING['steps']) <= 4, "hook_editor 的 steps 要 1–4 个"
 
 # ---- 节点入场：at = 揭示顺序；rf = 台词锚点（根节点跟板一起淡入）----
 for x in G:
@@ -96,6 +144,9 @@ chapters[0]["start"] = 0.5
 for i in range(len(chapters) - 1):
     chapters[i]["end"] = chapters[i+1]["start"] = max(chapters[i+1]["start"], chapters[i]["start"] + 1.0)
 chapters[-1]["end"] = dur
+if OPENING:   # 开场剪辑器期间不出章节标签：推到它结束之后
+    chapters = [c for c in chapters if c["end"] > OPENING["end"] + 1.0]
+    if chapters: chapters[0]["start"] = max(chapters[0]["start"], OPENING["end"])
 
 # ---- 词条 / 链 / 成对 / 徽章 ----
 for c in CHIPS:
@@ -141,7 +192,7 @@ blocks, run = [], [0]
 for i, m in enumerate(joined):
     if m: run.append(i+1)
     else: blocks.append(run); run = [i+1]
-blocks.append(run)
+if items: blocks.append(run)   # lite / 没有板和大图时没有隐人区块
 spec_blocks = [{"fin": items[r[0]]["ref"]["fin"], "fout": items[r[-1]]["ref"]["fout"]} for r in blocks]
 runs = []
 for blk in blocks:
@@ -157,12 +208,13 @@ spec = {"fps": FPS, "width": 1920, "height": 1080, "duration": round(dur, 3),
         "durationInFrames": int(math.floor(dur * FPS)),
         "cues": cues, "groups": G, "blocks": spec_blocks, "pipRuns": runs, "chapters": chapters,
         "chips": CHIPS, "chains": CHAINS, "pairs": PAIRS, "marks": MARKS, "shows": SHOWS,
-        "subtitles": SUBS}
+        "subtitles": SUBS, "tier": TIER, "opening": OPENING, "titles": TITLES, "endcard": ENDCARD,
+        "flashes": [OPENING["boom"]] if OPENING else []}   # 设计白闪：spike_scan 不当乱帧
 os.makedirs('remotion/public', exist_ok=True)
 json.dump(spec, open('remotion/public/spec.json', 'w'), ensure_ascii=False, indent=1)
 
 # ---- 体检报告 ----
-print(f"时长 {dur:.2f}s")
+print(f"档位 {TIER}   时长 {dur:.2f}s")
 tot = 0
 for i, x in enumerate(G):
     d = x['end'] - x['start']; tot += d
@@ -175,12 +227,23 @@ print("箭头链: " + " | ".join(f"{c['start']:.0f}-{c['end']:.0f} " + " → ".j
 print("成对/徽章: " + " ".join(f"[{p['start']:.0f}-{p['end']:.0f}]" for p in PAIRS + MARKS))
 print("隐人区块: " + " ".join(f"[{b['fin'][0]:.0f}-{b['fout'][1]:.0f}]" for b in spec_blocks))
 print("展示层: " + " | ".join(f"{x['start']:.0f}-{x['end']:.0f} {x.get('src', 'stat:'+str(x.get('num')))}" for x in SHOWS))
+if TIER == 'max':
+    sig = ([f"开场剪辑器 0–{OPENING['end']:.1f}s"] if OPENING else []) + \
+          [f"大字「{t['text']}」{t['start']:.1f}–{t['end']:.1f}s" for t in TITLES] + \
+          ([f"结尾卡 {ENDCARD['start']:.1f}–{ENDCARD['end']:.1f}s"] if ENDCARD else [])
+    print("招牌时刻: " + (" | ".join(sig) or "（没有——max 至少放一个，否则和 pro 只差微动效）"))
 hidden = [x for x in G if x['pip'] == 'none']
 print(f"图形覆盖 {tot:.1f}s / {dur:.1f}s = {tot/dur*100:.0f}%   板数 {len(G)}   " +
       f"最长连续隐身 {max([x['end']-x['start'] for x in hidden] or [0]):.1f}s")
 warn = [f"板{x['no']}" for x in G if (x['end']-x['start']) < 6] + \
        [f"板{x['no']}节点过密" for x in G if len(x['nodes']) > 7]
-if tot/dur > 0.60: warn.append(f"覆盖 {tot/dur*100:.0f}% > 60%")
+cap = {'lite': 1.01, 'pro': 0.60, 'max': 0.70}[TIER]
+if tot/dur > cap: warn.append(f"覆盖 {tot/dur*100:.0f}% > {cap*100:.0f}%")
+if CH and not chapters: warn.append("章节标签全被开场剪辑器吃掉了——CH 的锚点要落在开场之后")
+for nm, a0, b0 in [(f"大字「{t['text']}」", t['start'], t['end']) for t in TITLES] + \
+                  ([("结尾卡", ENDCARD['start'], ENDCARD['end'])] if ENDCARD else []):
+    if any(a0 < b['fout'][1] and b0 > b['fin'][0] for b in spec_blocks):
+        warn.append(f"{nm} 撞上隐人区块——招牌时刻要放在人物全屏段")
 for x in G:
     cids = {n['id'] for n in x['nodes'] if n.get('conclusion')}
     orphan = [n['id'] for n in x['nodes'] if n.get('parent') in cids]

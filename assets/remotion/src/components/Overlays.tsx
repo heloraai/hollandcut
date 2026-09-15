@@ -74,7 +74,9 @@ const chipColors = (style: string) =>
 const PITCH = 84; // 行距（词条单行高 + 间隙）
 export const ChipStacks: React.FC<{
   chips: {start: number; end: number; top?: number; items: {t: string; rf: number; style?: string}[]}[];
-}> = ({chips}) => {
+  /** max 档：打字机 / 最新一条呼吸光 / 轨点脉动 / 微浮动 / 落位扫光 */
+  live?: boolean;
+}> = ({chips, live = false}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const grp = chips.find((c) => frame >= F(c.start) && frame < F(c.end) + 10);
@@ -121,6 +123,15 @@ export const ChipStacks: React.FC<{
           extrapolateLeft: 'clamp',
           extrapolateRight: 'clamp',
         });
+        // 落位后一道金光扫过词条
+        const sweep = interpolate(local, [10, 26], [-40, 140], {
+          extrapolateLeft: 'clamp',
+          extrapolateRight: 'clamp',
+          easing: Easing.inOut(Easing.ease),
+        });
+        const typed = live ? it.t.slice(0, Math.max(1, Math.floor((local - 2) * 1.2))) : it.t;
+        const active = live && i === lastIdx;
+        const idle = live ? 2.2 * Math.sin(frame / 24 + i * 1.4) * Math.min(1, e) : 0;
         return (
           <div
             key={i}
@@ -132,6 +143,7 @@ export const ChipStacks: React.FC<{
               alignItems: 'center',
               gap: 18,
               opacity: ap,
+              transform: `translateY(${idle}px)`,
             }}
           >
             {/* 轨上圆点 */}
@@ -143,7 +155,7 @@ export const ChipStacks: React.FC<{
                 background: '#0c0d12',
                 border: `2.4px solid ${GOLD}`,
                 boxShadow: `0 0 ${10 * e}px rgba(201,162,74,0.6)`,
-                transform: `scale(${0.5 + 0.5 * e})`,
+                transform: `scale(${(0.5 + 0.5 * e) * (1 + (live ? 0.12 : 0) * Math.sin(frame / 7 + i * 2))})`,
                 flex: 'none',
               }}
             />
@@ -164,12 +176,24 @@ export const ChipStacks: React.FC<{
                 letterSpacing: 1,
                 color: c.fg,
                 whiteSpace: 'nowrap',
-                boxShadow: '4px 5px 0 rgba(0,0,0,0.6)',
+                boxShadow: active
+                  ? `4px 5px 0 rgba(0,0,0,0.6), 0 0 ${15 + 7 * Math.sin(frame / 6)}px rgba(201,162,74,0.75)`
+                  : '4px 5px 0 rgba(0,0,0,0.6)',
                 transform: `translateX(${(1 - e) * -34}px) scale(${0.86 + 0.14 * e})`,
                 transformOrigin: 'left center',
+                overflow: 'hidden',
               }}
             >
               <span style={{position: 'absolute', inset: -2, borderRadius: 999, background: '#fff', opacity: flash, pointerEvents: 'none'}} />
+              {live ? (
+                <span
+                  style={{
+                    position: 'absolute', top: -8, bottom: -8, left: `${sweep}%`, width: 46,
+                    background: 'linear-gradient(105deg, transparent, rgba(255,255,255,0.45), transparent)',
+                    transform: 'skewX(-18deg)', pointerEvents: 'none',
+                  }}
+                />
+              ) : null}
               <span
                 style={{
                   fontSize: 21,
@@ -180,7 +204,7 @@ export const ChipStacks: React.FC<{
               >
                 {String(i + 1).padStart(2, '0')}
               </span>
-              {it.t}
+              {typed}
             </div>
           </div>
         );
@@ -190,7 +214,7 @@ export const ChipStacks: React.FC<{
 };
 
 /** ③④ 单独展示层：截图大图浮出 / 大字数据滚动 */
-export const Shows: React.FC<{shows: any[]}> = ({shows}) => {
+export const Shows: React.FC<{shows: any[]; live?: boolean}> = ({shows, live = false}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   return (
@@ -319,6 +343,17 @@ export const Shows: React.FC<{shows: any[]}> = ({shows}) => {
         }
         if (x.type === 'video' && x.full) return null; // 全屏视频在 Video.tsx 底层渲
         if (x.type === 'image') {
+          // 缓推镜头：整个展示时长里画面从 1.0 缓慢推近到 1.05
+          const kb = !live ? 1 : interpolate(frame, [a, b], [1, 1.05], {
+            extrapolateLeft: 'clamp',
+            extrapolateRight: 'clamp',
+          });
+          // 落位后一道金光扫过卡面
+          const sweep = interpolate(frame - a, [9, 30], [-35, 135], {
+            extrapolateLeft: 'clamp',
+            extrapolateRight: 'clamp',
+            easing: Easing.inOut(Easing.ease),
+          });
           return (
             <div
               key={i}
@@ -333,8 +368,9 @@ export const Shows: React.FC<{shows: any[]}> = ({shows}) => {
                 padding: 12,
                 boxShadow: '0 26px 70px rgba(0,0,0,0.65), 0 0 34px rgba(201,162,74,0.22)',
                 opacity: Math.min(e * 1.4, 1) * out,
-                transform: `scale(${(0.9 + 0.1 * e) * scaleOut})`,
+                transform: `perspective(1300px) rotateY(${(1 - e) * (live ? -10 : 0)}deg) scale(${(0.9 + 0.1 * e) * scaleOut})`,
                 fontFamily: FONT,
+                overflow: 'hidden',
               }}
             >
               <span style={{position: 'absolute', inset: -2, borderRadius: 22, background: '#fff', opacity: flash, pointerEvents: 'none', zIndex: 3}} />
@@ -348,10 +384,21 @@ export const Shows: React.FC<{shows: any[]}> = ({shows}) => {
                   zIndex: 2,
                 }}
               />
-              <Img
-                src={staticFile(x.src)}
-                style={{width: x.w, height: 'auto', display: 'block', borderRadius: 12}}
-              />
+              {live ? (
+                <span
+                  style={{
+                    position: 'absolute', top: -30, bottom: -30, left: `${sweep}%`, width: 110,
+                    background: 'linear-gradient(105deg, transparent, rgba(255,255,255,0.2), transparent)',
+                    transform: 'skewX(-18deg)', pointerEvents: 'none', zIndex: 3,
+                  }}
+                />
+              ) : null}
+              <div style={{width: x.w, height: Math.round(x.w / x.ar), overflow: 'hidden', borderRadius: 12}}>
+                <Img
+                  src={staticFile(x.src)}
+                  style={{width: x.w, height: 'auto', display: 'block', transform: `scale(${kb})`}}
+                />
+              </div>
               {x.cap ? (
                 <div
                   style={{
@@ -377,6 +424,68 @@ export const Shows: React.FC<{shows: any[]}> = ({shows}) => {
             easing: Easing.out(Easing.cubic),
           }),
         );
+        if (x.gauge) {
+          // 圆环仪表盘：深色底板压住任何背景；弧线画出 + 端点亮珠；右侧容量条把「只有 N%」讲清楚
+          const R = 92, SW = 17, C = 2 * Math.PI * R;
+          const p = (x.num / 100) * interpolate(frame - a, [6, 40], [0, 1], {
+            extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.out(Easing.cubic),
+          });
+          const ang = -Math.PI / 2 + p * 2 * Math.PI;
+          const dotX = 122 + R * Math.cos(ang), dotY = 122 + R * Math.sin(ang);
+          const pulse = 1 + (live ? 0.07 : 0) * Math.sin((frame - a) / 7);
+          const sweep = interpolate(frame - a, [10, 36], [-35, 135], {
+            extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.inOut(Easing.ease),
+          });
+          return (
+            <div
+              key={i}
+              style={{
+                position: 'absolute', left: 34, top: 112 + (1 - e) * 26, fontFamily: FONT,
+                opacity: Math.min(e * 1.4, 1) * out,
+                transform: `scale(${0.93 + 0.07 * e})`, transformOrigin: 'left top',
+              }}
+            >
+              <div
+                style={{
+                  position: 'relative', display: 'flex', alignItems: 'center', gap: 24,
+                  background: 'rgba(10,11,15,0.88)', border: `2.4px solid ${GOLD}`, borderRadius: 24,
+                  padding: '18px 36px 18px 16px', overflow: 'hidden',
+                  boxShadow: '0 22px 60px rgba(0,0,0,0.65), 0 0 34px rgba(201,162,74,0.24)',
+                }}
+              >
+                {live ? <span style={{position: 'absolute', top: -30, bottom: -30, left: `${sweep}%`, width: 100, background: 'linear-gradient(105deg, transparent, rgba(230,207,146,0.14), transparent)', transform: 'skewX(-18deg)', pointerEvents: 'none'}} /> : null}
+                <svg width={244} height={244}>
+                  <circle cx={122} cy={122} r={R} fill="none" stroke="rgba(201,162,74,0.18)" strokeWidth={SW} />
+                  <circle cx={122} cy={122} r={R} fill="none" stroke="rgba(230,207,146,0.25)" strokeWidth={SW + 10} strokeLinecap="round" strokeDasharray={`${C * p} ${C}`} transform="rotate(-90 122 122)" />
+                  <circle cx={122} cy={122} r={R} fill="none" stroke="url(#gaugeGrad)" strokeWidth={SW} strokeLinecap="round" strokeDasharray={`${C * p} ${C}`} transform="rotate(-90 122 122)" />
+                  <defs>
+                    <linearGradient id="gaugeGrad" gradientUnits="userSpaceOnUse" x1="30" y1="30" x2="214" y2="214">
+                      <stop offset="0%" stopColor="#e6cf92" />
+                      <stop offset="100%" stopColor="#a8842f" />
+                    </linearGradient>
+                  </defs>
+                  <circle cx={dotX} cy={dotY} r={19 * pulse} fill="rgba(230,207,146,0.3)" />
+                  <circle cx={dotX} cy={dotY} r={10 * pulse} fill="#e6cf92" />
+                  <text x={116} y={140} textAnchor="middle" fontFamily={FONT} fontSize={86} fontWeight={700} fill={GOLD_LITE}>
+                    {x.prefix ?? ''}{cnt}<tspan fontSize={40} dy={-4}>{x.suffix ?? ''}</tspan>
+                  </text>
+                </svg>
+                <div style={{width: 370}}>
+                  <div style={{fontSize: 29, fontWeight: 700, color: '#efe8d7', letterSpacing: 1.2, lineHeight: 1.4}}>
+                    {x.label}
+                  </div>
+                  <div style={{position: 'relative', marginTop: 18, height: 13, borderRadius: 8, background: 'rgba(201,162,74,0.16)'}}>
+                    <div style={{position: 'absolute', left: 0, top: 0, bottom: 0, width: `${Math.max(p * 100, 1.4)}%`, borderRadius: 8, background: 'linear-gradient(90deg, #e6cf92, #c9a24a)'}} />
+                    <span style={{position: 'absolute', left: `${Math.max(p * 100, 1.4)}%`, top: '50%', translate: '-50% -50%', width: 21 * pulse, height: 21 * pulse, borderRadius: '50%', background: '#e6cf92', boxShadow: '0 0 0 4px rgba(230,207,146,0.25)'}} />
+                  </div>
+                  <div style={{display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 19, color: 'rgba(239,232,215,0.55)', letterSpacing: 1}}>
+                    <span>0</span><span>全部额度 100%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        }
         return (
           <div
             key={i}

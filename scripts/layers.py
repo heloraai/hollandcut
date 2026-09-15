@@ -1,6 +1,6 @@
-"""人物层：全屏人物 / 圆窗 / 音轨 / 磨砂玻璃底。母版每改一次都要重做（preflight 会查时长）。"""
-import subprocess, sys
-from tools import FFMPEG
+"""人物层：全屏人物 / 圆窗 / 音轨 / 磨砂玻璃底 / 开场剪辑器缩略图。母版每改一次都要重做（preflight 会查时长）。"""
+import os, subprocess, sys
+from tools import FFMPEG, duration
 M, P = 'build/master.mp4', 'remotion/public'
 X264 = ['-an', '-c:v', 'libx264', '-pix_fmt', 'yuv420p']
 JOBS = [
@@ -15,3 +15,12 @@ for job in JOBS:
     if subprocess.run([FFMPEG, '-v', 'error', '-y', *job]).returncode:
         sys.exit(f'✗ {job[-1]} 生成失败')
     print('  ✓', job[-1])
+
+# max 档开场剪辑器的时间轴缩略图：母版均匀抽 8 帧（其他档用不到，只要几秒，照做）
+os.makedirs(f'{P}/thumbs', exist_ok=True)
+d = duration(M)
+for i in range(8):
+    if subprocess.run([FFMPEG, '-v', 'error', '-y', '-ss', f'{d * (i + 0.5) / 8:.2f}', '-i', M,
+                       '-frames:v', '1', '-vf', 'scale=172:97', f'{P}/thumbs/t{i}.jpg']).returncode:
+        sys.exit(f'✗ {P}/thumbs/t{i}.jpg 生成失败')
+print('  ✓', f'{P}/thumbs/t0-7.jpg')

@@ -68,7 +68,7 @@ export const Badge: React.FC<{glyph: string; tone: 'gold' | 'red'; e: number; si
 );
 
 /** ⑦ 箭头链：横排 A → B → C ✓；竖排则是参考片的「流程卡」——方框 + 向下箭头逐级画出 */
-export const Chains: React.FC<{chains: any[]}> = ({chains}) => {
+export const Chains: React.FC<{chains: any[]; live?: boolean}> = ({chains, live = false}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   const g = chains.find((c) => frame >= F(c.start) && frame < F(c.end) + 6);
@@ -95,11 +95,14 @@ export const Chains: React.FC<{chains: any[]}> = ({chains}) => {
               vertical ? (
                 <svg width={40} height={44} style={{flex: 'none', marginLeft: 34}}>
                   <line x1={20} y1={4} x2={20} y2={4 + 26 * Math.min(1, draw * 1.2)} stroke={GOLD} strokeWidth={4} strokeLinecap="round" />
+                  {/* 画完后能量点沿线流动 */}
+                  {live && draw >= 1 ? <circle cx={20} cy={4 + ((frame * 1.6 + i * 9) % 26)} r={4.5} fill={GOLD_LITE} opacity={0.9} /> : null}
                   <path d="M11 28 L20 40 L29 28 Z" fill={GOLD} opacity={draw > 0.85 ? 1 : 0} />
                 </svg>
               ) : (
                 <svg width={62} height={30} style={{flex: 'none', margin: '0 8px'}}>
                   <line x1={4} y1={15} x2={4 + 44 * Math.min(1, draw * 1.2)} y2={15} stroke={GOLD} strokeWidth={4} strokeLinecap="round" />
+                  {live && draw >= 1 ? <circle cx={4 + ((frame * 1.6 + i * 13) % 44)} cy={15} r={4.5} fill={GOLD_LITE} opacity={0.9} /> : null}
                   <path d="M46 6 L58 15 L46 24 Z" fill={GOLD} opacity={draw > 0.85 ? 1 : 0} />
                 </svg>
               )

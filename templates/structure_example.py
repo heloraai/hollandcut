@@ -2,6 +2,9 @@
 # 画面结构（示例：FDE 前沿部署工程师 v7）。每个项目一份 structure.py，由 Claude 在用户确认提案后写。
 # 所有时间都用台词锚点，不写死秒数；剪辑改了锚点自动跟着走。
 # 可用助手：A / AE / A_after / g / N / SHOT / chip / link / show_img / show_scroll / stat / dur
+# max 档另有 hook_editor / title / endcard，写法见 structure_max_example.py
+
+TIER = "pro"   # lite / pro / max：阶段 0 用户选定的效果强度（lite 不许有 g(...) 和大图）
 
 # ===== 脑图板：pip = bl(左下圆窗) | none(全隐) | to(全屏接管对比) =====
 g(1, "反常识的价格差", "bl", "就是大模型越来越便宜", "叫做FDE前沿部署工程师", [

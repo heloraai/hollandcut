@@ -16,6 +16,9 @@ import {LogicGraph, GNode, Box} from './components/LogicGraph';
 import {ChapterTags, ChipStacks, Shows} from './components/Overlays';
 import {Chains, Pairs, Marks} from './components/Extras';
 import {Takeover} from './components/Takeover';
+import {Opening} from './components/Opening';
+import {GoldDust, EndCard} from './components/Ambient';
+import {BigTitles} from './components/BigTitle';
 import spec from '../public/spec.json';
 
 const F = (s: number) => Math.round(s * T.FPS);
@@ -157,6 +160,9 @@ const ramp = (frame: number, fin: number[], fout: number[]) =>
 export const ShenVideo: React.FC = () => {
   const frame = useCurrentFrame();
   const groups = spec.groups as any[];
+  const S = spec as any;
+  const live = S.tier === 'max'; // max 档：持续微动效 + 招牌时刻
+  const opening = S.opening;
 
   // 人物全屏透明度：相接的组已在 spec 里并成区块，区块内不会闪回全屏
   const cover = Math.max(
@@ -171,7 +177,9 @@ export const ShenVideo: React.FC = () => {
 
   return (
     <AbsoluteFill style={{background: '#000'}}>
-      <Stage />
+      {/* 人物全屏时底下的磨砂层完全被盖住，不渲染（省一路视频解码） */}
+      {cover > 0.002 ? <Stage /> : null}
+      {live ? <GoldDust cover={cover} /> : null}
       {fullOp > 0.002 ? (
         <AbsoluteFill style={{opacity: fullOp}}>
           <OffthreadVideo
@@ -212,7 +220,7 @@ export const ShenVideo: React.FC = () => {
         if (to <= from) return null;
         return (
           <Sequence key={g.no} from={from} durationInFrames={to - from} layout="none">
-            <GroupCanvas group={g} />
+            <GroupCanvas group={g} live={live} />
           </Sequence>
         );
       })}
@@ -222,12 +230,17 @@ export const ShenVideo: React.FC = () => {
         return op > 0.002 ? <PersonCircle key={i} mode={r.mode as 'bl' | 'tl' | 'to'} op={op} /> : null;
       })}
 
+      {/* max 招牌：开场剪辑器（gen_spec 已把章节标签推到它结束之后） */}
+      {opening && frame < F(opening.end) + 10 ? <Opening o={opening} /> : null}
+
       <ChapterTags chapters={spec.chapters as any[]} />
-      <ChipStacks chips={spec.chips as any[]} />
-      <Chains chains={(spec as any).chains ?? []} />
+      <ChipStacks chips={spec.chips as any[]} live={live} />
+      <Chains chains={S.chains ?? []} live={live} />
       <Pairs pairs={(spec as any).pairs ?? []} />
       <Marks marks={(spec as any).marks ?? []} />
-      <Shows shows={spec.shows as any[]} />
+      <Shows shows={spec.shows as any[]} live={live} />
+      <BigTitles titles={S.titles ?? []} />
+      {S.endcard ? <EndCard c={S.endcard} /> : null}
 
       {(spec as any).subtitles !== false && cue ? (
         <Subtitle text={cue.text} local={frame - F(cue.start)} />
@@ -237,7 +250,7 @@ export const ShenVideo: React.FC = () => {
 };
 
 /** 单组画布：柔和进入 → 台词驱动生长 → 停留 → 柔和退出；整板全程缓慢漂浮 */
-const GroupCanvas: React.FC<{group: any}> = ({group}) => {
+const GroupCanvas: React.FC<{group: any; live: boolean}> = ({group, live}) => {
   const frame = useCurrentFrame();
   const f0 = F(group.fin[0]);
   const io = interpolate(
@@ -257,7 +270,7 @@ const GroupCanvas: React.FC<{group: any}> = ({group}) => {
   const fx = 3 * Math.sin(frame / 87 + 2);
   const reveals = (group.nodes as any[]).map((n) => F(n.rf) - f0);
   if (group.pip === 'to') {
-    return <Takeover group={group} io={io} />;
+    return <Takeover group={group} io={io} live={live} />;
   }
   return (
     <AbsoluteFill

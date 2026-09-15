@@ -10,15 +10,16 @@ import {
   Easing,
 } from 'remotion';
 import {T, GOLD, FONT} from '../theme';
+import {PaperSweep} from './Ambient';
 
 /** ⑤ 全屏接管对比图：米白纸面 + 中轴金线 + 左右两栏 + 对比截图 */
-export const Takeover: React.FC<{group: any; io: number}> = ({group, io}) => {
+export const Takeover: React.FC<{group: any; io: number; live?: boolean}> = ({group, io, live = false}) => {
   const frame = useCurrentFrame(); // 相对 Sequence 起点
   const {fps} = useVideoConfig();
   const F = (s: number) => Math.round(s * T.FPS);
   const t0 = F(group.fin[0]);
   const node = (id: string) => group.nodes.find((n: any) => n.id === id);
-  // 缺节点（如没有 b1/b2/f1-f3 的接管板）→ 永不入场，保证 pop() 的 hook 数量恒定
+  // 缺节点 → 永不入场（rf 推到无穷远），保证 pop() 的 hook 数量恒定
   const rf = (id: string) => {
     const n = node(id);
     return n ? F(n.rf) - t0 : 10 ** 9;
@@ -104,6 +105,7 @@ export const Takeover: React.FC<{group: any; io: number}> = ({group, io}) => {
             'radial-gradient(120% 90% at 22% 10%, rgba(201,162,74,0.10) 0%, rgba(0,0,0,0) 55%)',
         }}
       />
+      {live ? <PaperSweep io={io} /> : null}
       <div style={{position: 'absolute', inset: 0}}>
         {/* 标题 */}
         {pop('r').on ? (

@@ -9,10 +9,17 @@ for f in ['remotion/public/main_v.mp4', 'remotion/public/pip.mp4', 'remotion/pub
 spec = json.load(open('remotion/public/spec.json'))
 good = abs(spec['duration'] - m) < 0.1; ok &= good
 print(f"  {'✓' if good else '✗'} spec.duration {spec['duration']:8.3f}s")
-c = spec['cues'][-1]['end']; good = c <= m + 0.5; ok &= good
+c = spec['cues'][-1]['end'] if spec['cues'] else 0.0; good = c <= m + 0.5; ok &= good
 print(f"  {'✓' if good else '✗'} 末条字幕收在 {c:.2f}s")
-g = spec['groups'][-1]['fout'][1]; good = g <= m; ok &= good
-print(f"  {'✓' if good else '✗'} 末组溶解收在 {g:.2f}s")
+ends = [b['fout'][1] for b in spec.get('blocks') or []]   # 板 + 大图合并后的隐人区块；lite 没有
+if ends:
+    g = max(ends); good = g <= m; ok &= good
+    print(f"  {'✓' if good else '✗'} 末个隐人区块溶解收在 {g:.2f}s")
+else:
+    print("  ✓ 没有隐人区块（人物全程全屏）")
+if spec.get('opening'):   # max 开场剪辑器的时间轴缩略图；缺了 <Img> 会 404 卡到渲染超时
+    good = all(os.path.exists(f'remotion/public/thumbs/t{i}.jpg') for i in range(8)); ok &= good
+    print(f"  {'✓' if good else '✗'} 开场剪辑器缩略图" + ("" if good else "：缺 remotion/public/thumbs/，重跑 python3 layers.py"))
 if not os.path.isdir('remotion/node_modules'):
     print("  ✗ remotion/node_modules 不存在：先 cd remotion && npm install"); ok = False
 else:
