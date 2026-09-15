@@ -53,7 +53,7 @@ agent 第一步只出提案（素材体检 + 画面结构 + 缺图清单），**
 | Whisper 模型 `ggml-large-v3.bin` | 3.1 GB | 中文转写；小模型能跑，但错字明显多 | 同上 |
 | Node.js + npm | ≥ 18 | 安装和运行 Remotion | `render.py`、预览 |
 | Remotion 4.0.410 + React 19 | `npm install` 自动装 | 画图形层和字幕，渲染 1080p | `remotion/` |
-| Chromium（chrome-headless-shell） | Remotion 首次渲染时自动下载，约 100 MB | Remotion 逐帧截图；`webshot.py` 也用它截网页 | Remotion、`webshot.py` |
+| Chromium（chrome-headless-shell） | Remotion 首次渲染时自动下载，约 85 MB | Remotion 逐帧截图；`webshot.py` 也用它截网页 | Remotion、`webshot.py` |
 | 中文字体 | 系统自带 | 卡片和字幕的字形 | Remotion |
 
 仓库**不附带任何字体文件**：macOS 用系统的冬青黑体 / 苹方，Windows 用微软雅黑，Linux 需要装 `fonts-noto-cjk`。
