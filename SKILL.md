@@ -73,15 +73,21 @@ python3 gen_spec.py structure.py && python3 preflight.py
 
 看体检输出：档位、招牌时刻、覆盖率、最长隐身、每板节点入场时刻、⚠ 项。图片放 `remotion/public/`（公开网页：`python3 webshot.py <网址> remotion/public/<名>.png`），长图用 `show_scroll`，竖图先裁成横版局部；视频素材用 `show_video`（full=True 开场全屏 B-roll，素材先 ffmpeg setpts 变速到窗口长度）；`SUBS = False` 可整片不烧字幕（SRT 照常交付）。
 
-## 阶段 3 —— 局部预览 → 整片渲染 → QA → 交付
+## 阶段 3 —— 动效预览（发给用户确认）
 
-先对每个有图 / 有链 / 有接管的时刻出 still 拼 contact sheet 亲眼检查，确认无碰撞、无压脸、无断词；max 档每个招牌时刻至少看入场中、落定后两帧：
+**不许直接开渲。** 先出动效预览页：把 spec 里每一处图形时刻抽成静帧，拼成一页带时间轴密度条的预览，发给用户，**等他确认画面再进阶段 4**。
 
 ```bash
-cd remotion && npx remotion bundle src/index.ts --out-dir=../.bundle && npx remotion still ../.bundle Shen ../plan/still_N.png --frame=N && cd ..
+cd remotion && npx remotion bundle src/index.ts --out-dir=../.bundle && cd ..
+python3 preview.py            # → plan/preview/index.html + shots/*.jpg（每处图形一张，半尺寸）
 ```
 
-再整片：
+- 用 Artifact 工具把 `plan/preview/index.html` 连同 `shots/*.jpg`（`files` 参数）发布成一页，把链接发给用户。
+- 自己先逐张看一遍再发：压脸 / 压字幕带（字幕在 bottom 62、字号 54，图形最低收在 y≈900）/ 碰撞 / 断词 / 竖图当横屏用 / 截图裁不全 / 该有 logo 的地方没 logo。自己能看出来的问题先改掉，别让用户挑。
+- 用户点名要改的，改完重跑 `preview.py` 再发一版，直到他说可以。
+- 密度条上的空白 = 没有图形的段落；用户嫌「动效密度低」时看这条就知道往哪儿补。
+
+## 阶段 4 —— 整片渲染 → QA → 交付
 
 ```bash
 python3 render.py v1   # 预检 → 打包 → 渲染 → 母版音轨换回 → QA → SRT → contact sheet → ~/Downloads/<项目>_v1/

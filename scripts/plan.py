@@ -20,7 +20,7 @@ from tools import FFMPEG as FF, FFPROBE as FP, speech_spans, transcribe
 
 SKILL = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STEPS = ("tools.py", "detect.py", "build_edl.py", "build_recut.py", "build_cues.py", "layers.py",
-         "gen_spec.py", "preflight.py", "render.py", "spike_scan.py", "webshot.py")
+         "gen_spec.py", "preflight.py", "render.py", "spike_scan.py", "webshot.py", "preview.py")
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--name", required=True)
@@ -77,6 +77,7 @@ if os.path.exists(f"{out}/remotion/src"): shutil.rmtree(f"{out}/remotion/src")
 shutil.copytree(f"{SKILL}/assets/remotion/src", f"{out}/remotion/src")
 for f in STEPS:
     shutil.copy2(f"{SKILL}/scripts/{f}", f"{out}/{f}")
+shutil.copy2(f"{SKILL}/scripts/preview_template.html", f"{out}/preview_template.html")
 for f in ("edl_rules.py", "cue_rules.py"):
     if not os.path.exists(f"{out}/{f}"): shutil.copy2(f"{SKILL}/templates/{f}", f"{out}/{f}")
 if not os.path.exists(f"{out}/plan/proposal.md"):
