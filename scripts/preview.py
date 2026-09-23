@@ -22,6 +22,7 @@ KIND = {
     '词条': ('步进词条', '#9aa4b2'), '箭头链': ('箭头链', '#6fae9f'), '成对贴纸': ('成对贴纸', '#d6a2b8'),
     '脑图板': ('脑图板', '#a8b07a'), '全屏接管': ('全屏对比', '#c98f6a'), '大字标题': ('大字标题', '#e0b356'),
     '结尾卡': ('结尾卡', '#cbb37a'), '开场剪辑器': ('开场剪辑器', '#e0b356'), '开头': ('开头几帧', '#f0c860'),
+    '票据竖列': ('票据竖列', '#e0b356'),
 }
 shots = []
 def add(t, label, kind, extra=''):
@@ -48,6 +49,9 @@ for t_ in spec.get('titles', []):
     add((t_['start'] + t_['end']) / 2, f"大字「{t_['text']}」", '大字标题')
 if spec.get('opening'):
     o = spec['opening']; add(o['boom'] - 0.3, "开场剪辑器 " + o['title'], '开场剪辑器')
+for r in spec.get('receipt_stacks', []):
+    t_stamp = r['stamp']['at'] + 0.6 if r.get('stamp') else r['end'] - 0.5
+    add(min(t_stamp, r['end'] - 0.2), "票据竖列 " + " / ".join(i['amt'] for i in r['items']), '票据竖列')
 if spec.get('endcard'):
     e = spec['endcard']; add((e['start'] + e['end']) / 2, "结尾关注卡", '结尾卡')
 # 开头几帧：钩子决定留存，0–3 秒密抽，不管有没有图形都要让用户看到
@@ -67,7 +71,7 @@ for g in spec['groups']: spans.append((g['fin'][0], g['fout'][1]))
 for x in spec['shows']: spans.append((x['start'], x['end'] + 0.3))
 for c in spec['chips'] + spec.get('chains', []) + spec.get('pairs', []) + spec.get('marks', []):
     spans.append((c['start'], c['end'] + 0.2))
-for x in spec.get('fans', []) + spec.get('rails', []) + spec.get('titles', []) + spec.get('prompts', []) + spec.get('numpops', []):
+for x in spec.get('fans', []) + spec.get('rails', []) + spec.get('titles', []) + spec.get('prompts', []) + spec.get('numpops', []) + spec.get('receipt_stacks', []):
     spans.append((x['start'], x['end']))
 if spec.get('opening'): spans.append((0, spec['opening']['end']))
 spans.sort()
