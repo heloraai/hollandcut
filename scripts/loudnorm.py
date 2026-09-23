@@ -3,7 +3,11 @@
 用法：python3 loudnorm.py <输入.mp4> <输出.mp4> [目标 LUFS，默认 -14]
 用户反馈：之前成片音量太低（实测 -18 LUFS），得手动拉高很多。"""
 import json, re, subprocess, sys
-from tools import FFMPEG
+try:
+    from tools import FFMPEG
+except ImportError:                      # 单独拷去别的流水线（holland-video）用：没有 tools.py 也能跑
+    import shutil
+    FFMPEG = shutil.which('ffmpeg') or '/opt/homebrew/bin/ffmpeg'
 
 src, dst = sys.argv[1], sys.argv[2]
 I = float(sys.argv[3]) if len(sys.argv) > 3 else -14.0
