@@ -27,6 +27,8 @@
   .stat span{font-size:12px;color:var(--dim);letter-spacing:1.4px}
   .ruler{margin-top:26px}
   .ruler .bar{position:relative;height:56px;background:var(--panel2);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+  .ruler .gap{position:absolute;top:0;bottom:0;background:repeating-linear-gradient(45deg,rgba(208,74,59,.22) 0 6px,transparent 6px 12px)}
+  .ruler .m60{position:absolute;top:0;bottom:0;width:2px;background:var(--goldsoft);opacity:.7}
   .ruler .tick{position:absolute;top:8px;bottom:8px;width:5px;border-radius:3px;border:none;padding:0;cursor:pointer}
   .ruler .tick:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
   .ruler .marks{display:flex;justify-content:space-between;margin-top:6px;font-size:11px;color:var(--dim)}
@@ -72,13 +74,14 @@
       <div class="stat"><b class="mono" id="s3"></b><span>图形覆盖</span></div>
       <div class="stat"><b class="mono" id="s4"></b><span>全屏板</span></div>
       <div class="stat"><b class="mono" id="s5"></b><span>效果档位</span></div>
+      <div class="stat"><b class="mono" id="s6"></b><span>前 60 秒空档</span></div>
     </div>
   </header>
 
   <section class="ruler">
     <div class="bar" id="bar"></div>
     <div class="marks mono" id="marks"></div>
-    <p class="hint">点密度条上的刻度可直接跳到那一帧</p>
+    <p class="hint">点密度条上的刻度可直接跳到那一帧；红色斜纹 = 前 60 秒里没有图形的空档，金线 = 第 60 秒</p>
   </section>
 
   <div class="filters" id="filters"></div>
@@ -107,6 +110,13 @@ document.getElementById('s2').textContent = D.items.length;
 document.getElementById('s3').textContent = D.cov + '%';
 document.getElementById('s4').textContent = D.boards;
 document.getElementById('s5').textContent = D.tier;
+document.getElementById('s6').textContent = D.gaps60.length ? D.gaps60.length + ' 处' : '0';
+D.gaps60.forEach(([a, b]) => {
+  const g = document.createElement('div'); g.className = 'gap';
+  g.style.left = (a / D.dur * 100) + '%'; g.style.width = ((b - a) / D.dur * 100) + '%';
+  g.title = '没有图形：' + a + '–' + b + 's'; bar.appendChild(g);
+});
+const m60 = document.createElement('div'); m60.className = 'm60'; m60.style.left = (60 / D.dur * 100) + '%'; bar.appendChild(m60);
 const marks = document.getElementById('marks');
 for (let m = 0; m <= Math.floor(D.dur / 60); m++) {
   const sp = document.createElement('span'); sp.textContent = m + ':00'; marks.appendChild(sp);

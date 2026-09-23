@@ -21,7 +21,7 @@ KIND = {
     'video': ('视频卡', '#a0a8d4'), 'term': ('终端卡', '#8fbf8a'), 'stat': ('圆环数据', '#e08b4a'),
     '词条': ('步进词条', '#9aa4b2'), '箭头链': ('箭头链', '#6fae9f'), '成对贴纸': ('成对贴纸', '#d6a2b8'),
     '脑图板': ('脑图板', '#a8b07a'), '全屏接管': ('全屏对比', '#c98f6a'), '大字标题': ('大字标题', '#e0b356'),
-    '结尾卡': ('结尾卡', '#cbb37a'), '开场剪辑器': ('开场剪辑器', '#e0b356'),
+    '结尾卡': ('结尾卡', '#cbb37a'), '开场剪辑器': ('开场剪辑器', '#e0b356'), '开头': ('开头几帧', '#f0c860'),
 }
 shots = []
 def add(t, label, kind, extra=''):
@@ -50,7 +50,32 @@ if spec.get('opening'):
     o = spec['opening']; add(o['boom'] - 0.3, "开场剪辑器 " + o['title'], '开场剪辑器')
 if spec.get('endcard'):
     e = spec['endcard']; add((e['start'] + e['end']) / 2, "结尾关注卡", '结尾卡')
+# 开头几帧：钩子决定留存，0–3 秒密抽，不管有没有图形都要让用户看到
+for t0 in (0.0, 0.4, 1.0, 1.8, 2.8):
+    add(t0, f"开头 {t0:.1f} 秒", '开头')
 shots.sort(key=lambda x: x['f'])
+# 同一帧只留一张（开头抽帧可能和图形时刻撞上）
+seen, uniq = set(), []
+for sh in shots:
+    if sh['f'] in seen: continue
+    seen.add(sh['f']); uniq.append(sh)
+shots = uniq
+
+# 前 60 秒的图形空档（留存关键段）：所有图形的在屏区间取并集，找 ≥1.5 秒的空白
+spans = []
+for g in spec['groups']: spans.append((g['fin'][0], g['fout'][1]))
+for x in spec['shows']: spans.append((x['start'], x['end'] + 0.3))
+for c in spec['chips'] + spec.get('chains', []) + spec.get('pairs', []) + spec.get('marks', []):
+    spans.append((c['start'], c['end'] + 0.2))
+for x in spec.get('fans', []) + spec.get('rails', []) + spec.get('titles', []) + spec.get('prompts', []) + spec.get('numpops', []):
+    spans.append((x['start'], x['end']))
+if spec.get('opening'): spans.append((0, spec['opening']['end']))
+spans.sort()
+gaps, cur = [], 0.0
+for a, b in spans:
+    if a > cur + 1.5 and cur < 60: gaps.append([round(cur, 1), round(min(a, 60), 1)])
+    cur = max(cur, b)
+if cur < 60 - 1.5: gaps.append([round(cur, 1), 60.0])
 
 os.makedirs(SHOTS, exist_ok=True)
 for f in glob.glob(f'{SHOTS}/*.jpg'):
@@ -81,9 +106,10 @@ for it in items:
 cov = round(sum(g['end'] - g['start'] for g in spec['groups']) / DUR * 100)
 DATA = json.dumps({'items': items, 'kinds': kinds, 'dur': DUR,
                    'dur_tc': f"{int(DUR//60)}:{DUR%60:04.1f}", 'cov': cov,
-                   'boards': len(spec['groups']), 'tier': spec.get('tier', 'pro')}, ensure_ascii=False)
+                   'boards': len(spec['groups']), 'tier': spec.get('tier', 'pro'), 'gaps60': gaps}, ensure_ascii=False)
 html = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'preview_template.html'), encoding='utf-8').read()
 open(f'{OUT}/index.html', 'w', encoding='utf-8').write(html.replace('__DATA__', DATA))
 size = sum(os.path.getsize(f) for f in glob.glob(f'{SHOTS}/*.jpg'))
 print(f"\n预览页 {OUT}/index.html   {len(items)} 张 / {size/1e6:.1f}MB")
+print("前 60 秒图形空档：" + ("无" if not gaps else "  ".join(f"{a}–{b}s" for a, b in gaps)))
 print("→ 发给用户确认画面，确认后再 python3 render.py v1")

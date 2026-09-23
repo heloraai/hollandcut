@@ -3,6 +3,10 @@ import json, re
 
 MAXCH = 16
 from cue_rules import FIX, GOLD, PROT_EXTRA, DROP as DROP_RE
+try:
+    from cue_rules import ADD      # whisper 漏掉的句子：[(起, 止, 文字)]，母版时间，按音频手补
+except ImportError:
+    ADD = []
 
 def fix(t):
     for a,b in FIX: t = t.replace(a,b)
@@ -87,6 +91,10 @@ for s,e,t,_ in m:
     for g in GOLD: t = t.replace(g, f"【{g}】") if f"【{g}】" not in t else t
     t = re.sub(r'【([^】]*)】(?=[^】]*】)', lambda x:x.group(0), t)
     out.append({"start":round(s,3),"end":round(max(e,s+0.35),3),"text":t})
+for s_, e_, t_ in ADD:
+    for g in GOLD: t_ = t_.replace(g, f"【{g}】") if f"【{g}】" not in t_ else t_
+    out.append({"start": round(s_, 3), "end": round(e_, 3), "text": t_})
+out.sort(key=lambda c: c["start"])
 # 去重叠
 for i in range(1,len(out)):
     if out[i]["start"] < out[i-1]["end"]: out[i-1]["end"] = out[i]["start"]
