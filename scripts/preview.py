@@ -1,3 +1,4 @@
+import re
 # -*- coding: utf-8 -*-
 """动效预览页：把 spec 里每一处图形时刻抽成静帧，拼成一页可滑的预览（时间轴密度条 + 类型筛选 + 点开放大）。
 用法（项目目录里）：python3 preview.py [--scale 0.5]
@@ -5,6 +6,7 @@
 import json, os, subprocess, sys, glob, shutil
 from PIL import Image
 
+NAME = sys.argv[1] if len(sys.argv) > 1 else re.sub(r'^edit_', '', os.path.basename(os.getcwd()))   # 页标题：python3 preview.py 「项目名」
 SCALE = '0.5'
 if '--scale' in sys.argv:
     SCALE = sys.argv[sys.argv.index('--scale') + 1]
@@ -22,7 +24,7 @@ KIND = {
     '词条': ('步进词条', '#9aa4b2'), '箭头链': ('箭头链', '#6fae9f'), '成对贴纸': ('成对贴纸', '#d6a2b8'),
     '脑图板': ('脑图板', '#a8b07a'), '全屏接管': ('全屏对比', '#c98f6a'), '大字标题': ('大字标题', '#e0b356'),
     '结尾卡': ('结尾卡', '#cbb37a'), '开场剪辑器': ('开场剪辑器', '#e0b356'), '开头': ('开头几帧', '#f0c860'),
-    '票据竖列': ('票据竖列', '#e0b356'),
+    '票据竖列': ('票据砸入', '#e0b356'), '合作平台列': ('合作平台列', '#7fb4d8'),
 }
 shots = []
 def add(t, label, kind, extra=''):
@@ -51,7 +53,24 @@ if spec.get('opening'):
     o = spec['opening']; add(o['boom'] - 0.3, "开场剪辑器 " + o['title'], '开场剪辑器')
 for r in spec.get('receipt_stacks', []):
     t_stamp = r['stamp']['at'] + 0.6 if r.get('stamp') else r['end'] - 0.5
-    add(min(t_stamp, r['end'] - 0.2), "票据竖列 " + " / ".join(i['amt'] for i in r['items']), '票据竖列')
+    add(min(t_stamp, r['end'] - 0.2), "票据砸入 " + " / ".join(i['amt'] for i in r['items']), '票据竖列')
+    for it in r['items'][:3]: add(it['at'] + 0.55, f"票据砸入 {it['amt']}", '票据竖列', '过程')
+for c in spec.get('partner_cols', []):
+    add(c['cards'][-1]['at'] + 0.8 if c['cards'] else c['start'] + 1, "合作平台 " + " / ".join(x['title'] for x in c['cards']), '合作平台列')
+    if c.get('note'): add(min(c['note']['at'] + 0.6, c['end'] - 0.2), "合作平台 · " + (c['callout']['t'] if c.get('callout') else ''), '合作平台列')
+for r in spec.get('rails', []):   # 路线图竖轨：第二格点亮时 + 收尾金章
+    ats = [n['at'] for n in r['nodes'] if n.get('at') is not None]
+    add((ats[1] if len(ats) > 1 else (ats[0] if ats else r['start'])) + 0.7,
+        "竖轨 " + " → ".join(n['label'] for n in r['nodes']), '竖轨')
+    if r.get('finale'): add(min(r['finale']['at'] + 0.7, r['end'] - 0.2), "竖轨收尾 · " + r['finale']['label'], '竖轨')
+for x in spec.get('numpops', []):
+    add(x['start'] + 1.0, f"数字弹窗 {x['num']}{x['suffix']} {x['label']}", '数字弹窗')
+for x in spec.get('fans', []):
+    add(x['start'] + 1.2, "三卡扇形发牌", '扇形')
+for x in spec.get('prompts', []):
+    add(x['start'] + 0.8, "提示词卡 " + x['title'], '提示词卡')
+    for sec in x.get('sections', []):
+        if sec.get('at') is not None: add(sec['at'] + 0.5, "提示词卡点亮 · " + sec['h'], '提示词卡')
 if spec.get('endcard'):
     e = spec['endcard']; add((e['start'] + e['end']) / 2, "结尾关注卡", '结尾卡')
 # 开头几帧：钩子决定留存，0–3 秒密抽，不管有没有图形都要让用户看到
@@ -71,7 +90,7 @@ for g in spec['groups']: spans.append((g['fin'][0], g['fout'][1]))
 for x in spec['shows']: spans.append((x['start'], x['end'] + 0.3))
 for c in spec['chips'] + spec.get('chains', []) + spec.get('pairs', []) + spec.get('marks', []):
     spans.append((c['start'], c['end'] + 0.2))
-for x in spec.get('fans', []) + spec.get('rails', []) + spec.get('titles', []) + spec.get('prompts', []) + spec.get('numpops', []) + spec.get('receipt_stacks', []):
+for x in spec.get('fans', []) + spec.get('rails', []) + spec.get('titles', []) + spec.get('prompts', []) + spec.get('numpops', []) + spec.get('receipt_stacks', []) + spec.get('partner_cols', []):
     spans.append((x['start'], x['end']))
 if spec.get('opening'): spans.append((0, spec['opening']['end']))
 spans.sort()
@@ -112,7 +131,7 @@ DATA = json.dumps({'items': items, 'kinds': kinds, 'dur': DUR,
                    'dur_tc': f"{int(DUR//60)}:{DUR%60:04.1f}", 'cov': cov,
                    'boards': len(spec['groups']), 'tier': spec.get('tier', 'pro'), 'gaps60': gaps}, ensure_ascii=False)
 html = open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'preview_template.html'), encoding='utf-8').read()
-open(f'{OUT}/index.html', 'w', encoding='utf-8').write(html.replace('__DATA__', DATA))
+open(f'{OUT}/index.html', 'w', encoding='utf-8').write(html.replace('__NAME__', NAME).replace('__DATA__', DATA))
 size = sum(os.path.getsize(f) for f in glob.glob(f'{SHOTS}/*.jpg'))
 print(f"\n预览页 {OUT}/index.html   {len(items)} 张 / {size/1e6:.1f}MB")
 print("前 60 秒图形空档：" + ("无" if not gaps else "  ".join(f"{a}–{b}s" for a, b in gaps)))
