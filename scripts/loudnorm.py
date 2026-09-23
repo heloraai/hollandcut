@@ -23,7 +23,11 @@ def measure(path, extra=''):
 a = measure(src)
 print(f"  原始：{float(a['input_i']):.1f} LUFS  真峰 {float(a['input_tp']):.1f} dBTP  LRA {float(a['input_lra']):.1f}")
 # 采样率跟源走、音频按视频时长截齐：换采样率会改 AAC 帧网格，母版会凭空多出一百多毫秒，预检 / 音画同步全乱
-from tools import FFPROBE
+try:
+    from tools import FFPROBE
+except ImportError:
+    import shutil
+    FFPROBE = shutil.which('ffprobe') or '/opt/homebrew/bin/ffprobe'
 probe = subprocess.run([FFPROBE, '-v', 'error', '-select_streams', 'a:0', '-show_entries', 'stream=sample_rate:format=duration', '-of', 'csv=p=0', src],
                        capture_output=True, text=True).stdout.split()
 sr = next((x for x in probe if x.isdigit()), '44100')
