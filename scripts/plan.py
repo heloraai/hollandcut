@@ -20,7 +20,7 @@ from tools import FFMPEG as FF, FFPROBE as FP, speech_spans, transcribe
 
 SKILL = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STEPS = ("tools.py", "detect.py", "build_edl.py", "build_recut.py", "build_cues.py", "layers.py",
-         "gen_spec.py", "preflight.py", "render.py", "spike_scan.py", "webshot.py", "preview.py")
+         "gen_spec.py", "preflight.py", "render.py", "spike_scan.py", "webshot.py", "preview.py", "loudnorm.py")
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--name", required=True)

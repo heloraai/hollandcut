@@ -8,6 +8,10 @@ try:
     from edl_rules import SPEED          # 整片变速（atempo 保音调），1.0 = 原速
 except ImportError:
     SPEED = 1.0
+try:
+    from edl_rules import LOUDNESS       # 母版响度目标（LUFS），抖音 / TikTok 用 -14；None = 不处理
+except ImportError:
+    LOUDNESS = -14.0
 edl = json.load(open('build/edl.json'))
 srcs = {int(k): v for k, v in json.load(open('sources.json', encoding='utf-8')).items()}
 keys = sorted(srcs)
@@ -30,6 +34,13 @@ print(f"拼接 {len(edl)} 段…" + (f"（{SPEED} 倍速）" if SPEED != 1 else 
 r = subprocess.run(cmd, capture_output=True, text=True)
 if r.returncode: sys.exit(r.stderr[:800])
 print("  OK")
+if LOUDNESS is not None:   # 用户反馈成片太小声（实测 -18 LUFS，得手动拉高）：两遍 loudnorm 对齐平台标准
+    import os, shutil
+    shutil.move('build/master.mp4', 'build/master_raw.mp4')
+    r = subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'loudnorm.py'),
+                        'build/master_raw.mp4', 'build/master.mp4', str(LOUDNESS)], capture_output=True, text=True)
+    print(r.stdout.rstrip())
+    if r.returncode: sys.exit(r.stderr[-600:])
 subprocess.run([FFMPEG, '-v', 'error', '-y', '-i', 'build/master.mp4', '-vn', '-ar', '16000', '-ac', '1', 'build/master.wav'], check=True)
 transcribe('build/master.wav', 'build/tm')
 print("  母版转写 → build/tm.json")
