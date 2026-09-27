@@ -3,7 +3,7 @@ from tools import FFMPEG, transcribe
 try:
     from edl_rules import HFLIP
 except ImportError:
-    HFLIP = True
+    HFLIP = False   # 默认不镜像：用户反馈翻过来看自己嘴是歪的；海报字反不是翻转理由
 try:
     from edl_rules import SPEED          # 整片变速（atempo 保音调），1.0 = 原速
 except ImportError:
@@ -19,7 +19,9 @@ parts, labels = [], []
 for n,(c,s,e) in enumerate(edl):
     k = keys.index(c)
     flip = "hflip," if HFLIP else ""
-    parts.append(f"[{k}:v]trim={s}:{e},setpts=PTS-STARTPTS,{flip}format=yuv420p,setsar=1[v{n}]")
+    parts.append(f"[{k}:v]trim={s}:{e},setpts=PTS-STARTPTS,fps=30,"   # 各段分辨率 / 帧率可能不同（1080p30 + 720p120），统一到 1080p30 才能拼
+                 f"scale=1920:1080:flags=lanczos:force_original_aspect_ratio=decrease,pad=1920:1080:(ow-iw)/2:(oh-ih)/2,"
+                 f"{flip}format=yuv420p,setsar=1[v{n}]")
     parts.append(f"[{k}:a]atrim={s}:{e},asetpts=PTS-STARTPTS[a{n}]")
     labels.append(f"[v{n}][a{n}]")
 tail = "[v][a]" if SPEED == 1 else f"[vc][ac];[vc]setpts=PTS/{SPEED}[v];[ac]atempo={SPEED}[a]"
