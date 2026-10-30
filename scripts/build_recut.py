@@ -3,7 +3,7 @@ from tools import FFMPEG, transcribe
 try:
     from edl_rules import HFLIP
 except ImportError:
-    HFLIP = False   # 默认不镜像：用户反馈翻过来看自己嘴是歪的；海报字反不是翻转理由
+    HFLIP = False   # 默认不镜像：翻过来人看着嘴歪；海报字反不是翻转理由
 try:
     from edl_rules import SPEED          # 整片变速（atempo 保音调），1.0 = 原速
 except ImportError:
@@ -38,7 +38,7 @@ print(f"拼接 {len(edl)} 段…" + (f"（{SPEED} 倍速）" if SPEED != 1 else 
 r = subprocess.run(cmd, capture_output=True, text=True)
 if r.returncode: sys.exit(r.stderr[:800])
 print("  OK")
-if LOUDNESS is not None:   # 用户反馈成片太小声（实测 -18 LUFS，得手动拉高）：两遍 loudnorm 对齐平台标准
+if LOUDNESS is not None:   # 两遍 loudnorm 对齐平台标准
     import os, shutil
     shutil.move('build/master.mp4', 'build/master_raw.mp4')
     r = subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), 'loudnorm.py'),

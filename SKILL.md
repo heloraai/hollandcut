@@ -11,9 +11,9 @@ description: hollandcut：把中文口播剪成 16:9 金色包装成片（去重
 |---|---|---|
 | **lite** | 字幕 + 章节标签 + 步进词条 + 大字数据；人物全程全屏 | 日更口播、访谈、纯观点 |
 | **pro**（默认） | lite + 脑图板 / 全屏对比 / 截图大图（人物缩左下圆窗）/ 箭头链 / 成对贴纸；落定静止 | 知识讲解、干货 |
-| **max** | pro + 招牌时刻（开场剪辑器 / 大字散射标题 / 圆环仪表盘 / 结尾 CTA 卡）+ 全片持续微动效 | 宣传片、发布、要惊艳 |
+| **max** | pro + 招牌时刻（开场剪辑器 / 开头堆叠钩子 / 大字标题 / 圆环仪表盘 / 结尾 CTA 卡）+ 全片持续微动效 + 钩子音效 | 宣传片、发布、要惊艳 |
 
-pro 的标准来自一条口播成片的 11 轮逐版返工，max 来自一条宣传片的 3 轮返工。**硬规则全在 [references/standards.md](references/standards.md)**（第 10 / 11 条是 max / lite 的差异），动效词汇在 [references/motion-vocabulary.md](references/motion-vocabulary.md)，开工前必读两份。下文 `<SKILL>` = 本 skill 所在目录。
+pro 的标准来自一条口播成片的 11 轮逐版返工，max 来自一条宣传片的 3 轮返工，开头钩子和节奏来自后续的口播系列。**硬规则全在 [references/standards.md](references/standards.md)**（第 10 / 11 条是 max / lite 的差异，第 12 条是开头钩子与节奏），动效词汇在 [references/motion-vocabulary.md](references/motion-vocabulary.md)，开工前必读两份。下文 `<SKILL>` = 本 skill 所在目录。
 
 ## 环境（每台机器第一次）
 
@@ -28,7 +28,7 @@ python3 <SKILL>/scripts/tools.py    # 体检：ffmpeg(libx264) / whisper-cli + �
 1. **效果强度**：lite / pro / max，给推荐和一句理由。用户请求里已经表态的直接预选并注明（「动效拉满 / 要惊艳 / 宣传片」→ max，「简单点 / 快点出」→ lite）。
 2. **动效位置**：按时间顺序列出每处动效（时间 + 台词 + 用哪种），用户可以增、删、挪；max 的招牌时刻放哪句单独确认。
 3. **缺的图**：每张写「用在哪句、要什么、来源」。公开网页（官网、GitHub、产品页）agent 用 `webshot.py` 自己截；要登录的页面、App 内页、用户自己的数据找用户要。每张都给「不放图，用词条」的备选。lite 不需要图。
-4. 其余：原始口播（必需，按录制顺序）、逐字文案（可选，校对错字和漏句）、是否水平镜像、气口松紧、**要不要整片 1.1 倍速**（`edl_rules.SPEED`，atempo 保音调）、疑似重录段去留、ASR 听不清的数字和专有名词。
+4. 其余：原始口播（必需，按录制顺序）、逐字文案（可选，校对错字和漏句）、是否水平镜像、气口松紧、整片倍速（`edl_rules.SPEED` 默认 1.12，atempo 保音调）、疑似重录段去留、ASR 听不清的数字和专有名词。
 
 ## 阶段 0 —— 体检 + 提案（不剪不渲，等用户确认）
 
@@ -65,7 +65,9 @@ cd remotion && npm install && cd ..   # 每个项目第一次；想复用已装�
   - `ENDCARD = endcard(名字, 标语, 链接, 起, 止, badge="已开源")`：结尾 CTA 卡（badge 是卡上的小章，可改可留空）
   - `stat(..., gauge=True)`：圆环仪表盘（百分比数据）
   - 持续微动效（词条打字机 / 呼吸光 / 链条能量点 / 大图 3D 入场 + 缓推 + 扫光 / 金色微尘）由 TIER 自动打开，不用写
+  - `OPEN2 = {...}` 开头堆叠钩子 + 每句一行 `title(..., chunks=, fly=True, smooth=True)` + `IMPACTS` 整屏冲击 + `SFX` 音效：开头 9 秒的标准做法（standards 第 12 条）
   - 招牌时刻只放人物全屏段，gen_spec 会查
+- 讲到某个功能放真录屏：`rec(src, a, b, pieces=[P(...), H(...)], marks=...)`；短结论 / 数字 / 证据截图用 `CUES` 气泡。全部助手和可选列表的写法见 `gen_spec.py` 文件头和各函数 docstring。
 
 ```bash
 python3 gen_spec.py structure.py && python3 preflight.py
@@ -96,4 +98,4 @@ python3 render.py v1   # 预检 → 打包 → 渲染 → 母版音轨换回 →
 开渲前告诉用户大概要多久：渲染 ≈ 成片时长 × 8，之后 QA 再 1–2 分钟（M1 Pro 并发 1 实测，分阶段耗时见 README「跑一次要多久」）。QA 任一项不过不交付（开场剪辑器的炸开白闪已登记，不算乱帧）。返工只改点名的部分，新版本号，不覆盖旧版。
 
 ## 返工原则
-所有时间都由台词锚点派生：改剪辑 → 重跑阶段 1 尾段 + `gen_spec` 即可，图形字幕自动跟上。出画面问题先怀疑自己叠的层。用户嫌「平、没冲击力」时先问要不要升档（pro → max），别在 pro 里硬堆元素。
+所有时间都由台词锚点派生：改剪辑 → 重跑阶段 1 尾段（含 `layers.py`）+ `gen_spec` 即可，图形字幕自动跟上。structure.py 里写死了秒数、或字幕错字已经手改过时，改 edl_rules 之前先 `python3 remap.py snap`，之后 `from remap import R` 把旧秒换到新母版（standards 第 12 条）。出画面问题先怀疑自己叠的层。用户嫌「平、没冲击力」时先问要不要升档（pro → max），别在 pro 里硬堆元素。

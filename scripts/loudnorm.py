@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 """响度标准化：两遍 loudnorm（先测量再线性校正），音频对齐抖音 / TikTok 的 -14 LUFS、真峰 -1 dBTP，视频流原样拷贝。
-用法：python3 loudnorm.py <输入.mp4> <输出.mp4> [目标 LUFS，默认 -14]
-用户反馈：之前成片音量太低（实测 -18 LUFS），得手动拉高很多。"""
+用法：python3 loudnorm.py <输入.mp4> <输出.mp4> [目标 LUFS，默认 -14]"""
 import json, re, subprocess, sys
 try:
     from tools import FFMPEG

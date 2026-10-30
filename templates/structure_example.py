@@ -120,7 +120,7 @@ PAIRS = [
      "right": [{"t": "六位数 +", "rf": A_after("六位数", AFTER), "tone": "gold", "size": 44},
                {"t": "甚至更多", "rf": A_after("甚至更多", AFTER), "tone": "dark", "size": 34}]},
 ]
-MARKS = []   # 徽章慎用，用户反馈「?」显得 AI
+MARKS = []   # 徽章慎用，「?」显得 AI
 
 # ===== 单独展示层（大图出现时人物自动缩左下圆窗）=====
 SHOWS = [

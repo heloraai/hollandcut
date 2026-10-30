@@ -10,6 +10,7 @@ import {
   spring,
   Easing,
 } from 'remotion';
+import {IconTiles} from './IconTiles';
 import {T, GOLD, GOLD_LITE, DARKRED, FONT} from '../theme';
 
 const F = (s: number) => Math.round(s * T.FPS);
@@ -17,22 +18,30 @@ const F = (s: number) => Math.round(s * T.FPS);
 /** ① 左上章节标签：贯穿全片，切换时滑出滑入 */
 export const ChapterTags: React.FC<{
   chapters: {start: number; end: number; text: string}[];
-}> = ({chapters}) => {
+  /** 这些窗口里不出标签（素材自带录屏段，左上是软件侧栏） */
+  hide?: number[][];
+}> = ({chapters, hide = []}) => {
   const frame = useCurrentFrame();
   const cur = chapters.find((c) => frame >= F(c.start) && frame < F(c.end));
-  if (!cur) return null;
+  if (!cur || hide.some(([a, b]) => frame >= F(a) && frame < F(b))) return null;
   const SLIDE = 12;
-  const inn = interpolate(frame, [F(cur.start), F(cur.start) + SLIDE], [0, 1], {
+  // 章节开头落在隐藏窗口（录屏段）里时，等录屏结束再从头滑入，别在录屏后露出半截
+  const s0 = Math.max(F(cur.start), ...hide.filter(([a, b]) => F(cur.start) >= F(a) && F(cur.start) < F(b)).map(([, b]) => F(b)));
+  const inn = interpolate(frame, [s0, s0 + SLIDE], [0, 1], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
     easing: Easing.out(Easing.cubic),
   });
-  const out = interpolate(frame, [F(cur.end) - SLIDE, F(cur.end)], [1, 0], {
+  const out = cur === chapters[chapters.length - 1] ? 1 : interpolate(frame, [F(cur.end) - SLIDE, F(cur.end)], [1, 0], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
     easing: Easing.in(Easing.cubic),
   });
   const k = Math.min(inn, out);
+  // 10-10：text =「前缀|标题|第几步/共几步」（不带 | 的照旧只有标题）。前缀「教程」金底实心，其余（原理 / 算账 / 对比）金边；
+  // 进度点：做过的实心金、当前这步实心 + 奶油色外圈、还没到的空心 —— 看的人知道现在是讲解还是操作、教程走到第几步
+  const [pre, title, prog] = cur.text.includes('|') ? cur.text.split('|') : ['', cur.text, ''];
+  const [step, total] = prog ? prog.split('/').map(Number) : [0, 0];
   return (
     <div
       style={{
@@ -42,8 +51,8 @@ export const ChapterTags: React.FC<{
         display: 'flex',
         alignItems: 'center',
         gap: 16,
-        background: 'rgba(10,11,15,0.84)',
-        border: `2px solid rgba(201,162,74,0.85)`,
+        background: '#15161B',   /* 扁平：纯色不透明（压在录屏上时底下的字不透出来）*/
+        border: `2px solid #F6C453`,
         borderRadius: 999,
         padding: '14px 34px 14px 26px',
         fontFamily: FONT,
@@ -54,11 +63,24 @@ export const ChapterTags: React.FC<{
         opacity: Math.min(1, k * 1.6),
         transform: `translateX(${(1 - k) * -18}px)`,
         clipPath: `inset(0 ${(1 - k) * 100}% 0 0 round 999px)`,
-        boxShadow: '4px 5px 0 rgba(0,0,0,0.55)',
       }}
     >
-      <span style={{width: 7, height: 32, background: GOLD, borderRadius: 2}} />
-      {cur.text}
+      <span style={{width: 7, height: 32, background: '#F6C453', borderRadius: 2}} />
+      {pre ? (
+        <span style={{fontSize: 28, fontWeight: 900, letterSpacing: 3, lineHeight: 1, padding: '7px 14px 7px 17px', borderRadius: 999,
+                      background: pre === '教程' ? '#F6C453' : 'transparent', color: pre === '教程' ? '#15161B' : '#F6C453',
+                      border: '2px solid #F6C453'}}>{pre}</span>
+      ) : null}
+      {title}
+      {total ? (
+        <span style={{display: 'flex', alignItems: 'center', gap: 9, marginLeft: 2}}>
+          {Array.from({length: total}).map((_, i) => (
+            <span key={i} style={{width: 16, height: 16, borderRadius: '50%', boxSizing: 'border-box',
+                                  background: i < step ? '#F6C453' : 'transparent', border: '2.5px solid #F6C453',
+                                  boxShadow: i === step - 1 ? '0 0 0 3px #15161B, 0 0 0 5.5px #f3ede0' : 'none'}} />
+          ))}
+        </span>
+      ) : null}
     </div>
   );
 };
@@ -81,6 +103,7 @@ export const ChipStacks: React.FC<{
   const {fps} = useVideoConfig();
   const grp = chips.find((c) => frame >= F(c.start) && frame < F(c.end) + 10);
   if (!grp) return null;
+  if (grp) return <IconTiles grp={grp as any} live={live} />;   // 并列观点列（信息类的提示走 Cues.tsx）
   const out = interpolate(frame, [F(grp.end), F(grp.end) + 6], [1, 0], {
     extrapolateLeft: 'clamp',
     extrapolateRight: 'clamp',
@@ -214,12 +237,17 @@ export const ChipStacks: React.FC<{
 };
 
 /** ③④ 单独展示层：截图大图浮出 / 大字数据滚动 */
+// 大图中心 / 最大宽高：右边缘收在 x≤1665（抖音横屏右侧按钮列会挡住更右的部分），左边缘让开左下人物圆窗（x≤448）；
+// 中心下移到 492 + 图高 ≤664：卡顶 ≥125 不碰左上章节标签，卡底 ≤857 不碰字幕
+const SX = 1060, SY = 502, SW_MAX = 1180, SH_MAX = 640;   // 卡顶 ≥150：和左上章节标签留出空
+
 export const Shows: React.FC<{shows: any[]; live?: boolean}> = ({shows, live = false}) => {
   const frame = useCurrentFrame();
   const {fps} = useVideoConfig();
   return (
     <>
-      {shows.map((x, i) => {
+      {shows.map((x0, i) => {
+        const x = x0.type === 'term' ? x0 : {...x0, w: Math.round(Math.min(x0.w, SW_MAX, x0.ar ? SH_MAX * x0.ar : Infinity))};
         const a = F(x.start);
         const b = F(x.end);
         if (frame < a || frame >= b + 10) return null;
@@ -252,14 +280,14 @@ export const Shows: React.FC<{shows: any[]; live?: boolean}> = ({shows, live = f
               key={i}
               style={{
                 position: 'absolute',
-                left: 1210,
-                top: 465 + (1 - e) * 30,
+                left: SX,
+                top: SY + (1 - e) * 30,
                 translate: '-50% -50%',
                 background: T.card,
                 border: `2.4px solid ${GOLD}`,
                 borderRadius: 22,
                 padding: 12,
-                boxShadow: '0 26px 70px rgba(0,0,0,0.65), 0 0 34px rgba(201,162,74,0.22)',
+                boxShadow: 'none',   /* 扁平：不发光、不投影 */
                 opacity: Math.min(e * 1.4, 1) * out,
                 transform: `scale(${(0.9 + 0.1 * e) * scaleOut})`,
                 fontFamily: FONT,
@@ -312,14 +340,14 @@ export const Shows: React.FC<{shows: any[]; live?: boolean}> = ({shows, live = f
               key={i}
               style={{
                 position: 'absolute',
-                left: 1210,
-                top: 465 + (1 - e) * 30,
+                left: SX,
+                top: SY + (1 - e) * 30,
                 translate: '-50% -50%',
                 background: T.card,
                 border: `2.4px solid ${GOLD}`,
                 borderRadius: 22,
                 padding: 12,
-                boxShadow: '0 26px 70px rgba(0,0,0,0.65), 0 0 34px rgba(201,162,74,0.22)',
+                boxShadow: 'none',   /* 扁平：不发光、不投影 */
                 opacity: Math.min(e * 1.4, 1) * out,
                 fontFamily: FONT,
               }}
@@ -337,11 +365,62 @@ export const Shows: React.FC<{shows: any[]; live?: boolean}> = ({shows, live = f
                   {x.cap}
                 </div>
               ) : null}
+              {x.stamp && frame >= F(x.stamp.at) ? (
+                <div
+                  style={{
+                    position: 'absolute', left: x.stamp.x ?? '62%', top: x.stamp.y ?? '70%', translate: '-50% -50%', zIndex: 4, whiteSpace: 'nowrap',
+                    color: '#fff', background: '#FF6B4A', borderRadius: 16,
+                    fontSize: x.stamp.size ?? 56, fontWeight: 900, letterSpacing: 4, padding: '10px 32px 12px', fontFamily: FONT,
+                    transform: `scale(${2 - Math.min(1, spring({frame: frame - F(x.stamp.at), fps, config: {damping: 9, stiffness: 220, mass: 0.7}}))})`,
+                    opacity: interpolate(frame - F(x.stamp.at), [0, 4], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'}),
+                  }}
+                >
+                  {x.stamp.t}
+                </div>
+              ) : null}
             </div>
             </Sequence>
           );
         }
         if (x.type === 'video' && x.full) return null; // 全屏视频在 Video.tsx 底层渲
+        if (x.type === 'term') {
+          // 终端打字卡：cmd 行逐字打出，out 行整行弹出、数字描金；最后一行带闪烁光标
+          const lines = x.lines as {kind: string; t: string; at: number}[];
+          const lastShown = lines.reduce((m: number, l, k) => (frame >= F(l.at) ? k : m), -1);
+          return (
+            <div
+              key={i}
+              style={{
+                position: 'absolute', left: SX, top: SY + (1 - e) * 30, translate: '-50% -50%', width: x.w,
+                background: '#0f1115', border: `2.4px solid ${GOLD}`, borderRadius: 22, overflow: 'hidden',
+                boxShadow: 'none',   /* 扁平：不发光、不投影 */
+                opacity: Math.min(e * 1.4, 1) * out,
+                transform: e > 0.995 ? 'none' : `perspective(1300px) rotateY(${(1 - e) * (live ? -10 : 0)}deg) scale(${0.9 + 0.1 * e})`,
+              }}
+            >
+              <div style={{height: 56, background: '#1b1e25', display: 'flex', alignItems: 'center', gap: 11, padding: '0 22px', borderBottom: '1px solid #2a2e38'}}>
+                {['#ff5f57', '#febc2e', '#28c840'].map((c) => <span key={c} style={{width: 15, height: 15, borderRadius: '50%', background: c}} />)}
+                <span style={{marginLeft: 16, fontSize: 24, color: '#9aa0ad', fontFamily: FONT, letterSpacing: 1}}>{x.title}</span>
+              </div>
+              <div style={{padding: '26px 34px 34px', fontFamily: '"SF Mono", Menlo, Consolas, monospace', fontSize: 34, lineHeight: '62px'}}>
+                {lines.map((l, k) => {
+                  if (frame < F(l.at)) return null;
+                  const local = frame - F(l.at);
+                  const text = l.kind === 'cmd' ? l.t.slice(0, Math.max(1, Math.floor(local * 1.5))) : l.t;
+                  const ap = l.kind === 'cmd' ? 1 : interpolate(local, [0, 5], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
+                  const parts = text.split(/(\d[\d,.]*%?)/g);
+                  return (
+                    <div key={k} style={{whiteSpace: 'pre', opacity: ap, color: l.kind === 'cmd' ? '#e8e6df' : '#9fd8a8'}}>
+                      {l.kind === 'cmd' ? <span style={{color: GOLD_LITE}}>$ </span> : null}
+                      {parts.map((p, j) => (/^\d/.test(p) && l.kind === 'out' ? <span key={j} style={{color: GOLD_LITE, fontWeight: 700}}>{p}</span> : <span key={j}>{p}</span>))}
+                      {k === lastShown ? <span style={{display: 'inline-block', width: 16, height: 36, background: GOLD_LITE, verticalAlign: -6, marginLeft: 6, opacity: Math.sin(frame / 5) > 0 ? 1 : 0}} /> : null}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        }
         if (x.type === 'image') {
           // 缓推镜头：整个展示时长里画面从 1.0 缓慢推近到 1.05
           const kb = !live ? 1 : interpolate(frame, [a, b], [1, 1.05], {
@@ -359,16 +438,17 @@ export const Shows: React.FC<{shows: any[]; live?: boolean}> = ({shows, live = f
               key={i}
               style={{
                 position: 'absolute',
-                left: 1210,
-                top: 465 + (1 - e) * 30,
+                left: SX,
+                top: SY + (1 - e) * 30,
                 translate: '-50% -50%',
                 background: T.card,
                 border: `2.4px solid ${GOLD}`,
                 borderRadius: 22,
                 padding: 12,
-                boxShadow: '0 26px 70px rgba(0,0,0,0.65), 0 0 34px rgba(201,162,74,0.22)',
+                boxShadow: 'none',   /* 扁平：不发光、不投影 */
                 opacity: Math.min(e * 1.4, 1) * out,
-                transform: `perspective(1300px) rotateY(${(1 - e) * (live ? -10 : 0)}deg) scale(${(0.9 + 0.1 * e) * scaleOut})`,
+                // 入场落定后撤掉 3D 变换：残留的 perspective + 小数缩放会让 Chrome 分块合成漏出 1px 竖缝（v3 113.3s 闪黑线）
+                transform: e > 0.995 ? 'none' : `perspective(1300px) rotateY(${(1 - e) * (live ? -10 : 0)}deg) scale(${(0.9 + 0.1 * e) * scaleOut})`,
                 fontFamily: FONT,
                 overflow: 'hidden',
               }}
@@ -388,15 +468,39 @@ export const Shows: React.FC<{shows: any[]; live?: boolean}> = ({shows, live = f
                 <span
                   style={{
                     position: 'absolute', top: -30, bottom: -30, left: `${sweep}%`, width: 110,
-                    background: 'linear-gradient(105deg, transparent, rgba(255,255,255,0.2), transparent)',
+                    background: 'transparent',   /* 扁平：不扫光 */
                     transform: 'skewX(-18deg)', pointerEvents: 'none', zIndex: 3,
                   }}
                 />
               ) : null}
+              {x.stamp && frame >= F(x.stamp.at) ? (
+                <div
+                  style={{
+                    position: 'absolute', left: x.stamp.x ?? '62%', top: x.stamp.y ?? '70%', translate: '-50% -50%', zIndex: 4, whiteSpace: 'nowrap',
+                    color: '#fff', background: '#FF6B4A', borderRadius: 16,
+                    fontSize: x.stamp.size ?? 56, fontWeight: 900, letterSpacing: 4, padding: '10px 32px 12px', fontFamily: FONT,
+                    transform: `scale(${2 - Math.min(1, spring({frame: frame - F(x.stamp.at), fps, config: {damping: 9, stiffness: 220, mass: 0.7}}))})`,
+                    opacity: interpolate(frame - F(x.stamp.at), [0, 4], [0, 1], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'}),
+                  }}
+                >
+                  {x.stamp.t}
+                </div>
+              ) : null}
+              {x.box && frame >= F(x.box.at) ? (() => {
+                const be = spring({frame: frame - F(x.box.at), fps, config: {damping: 11, stiffness: 200, mass: 0.7}});
+                const H = Math.round(x.w / x.ar);
+                return (
+                  <div style={{position: 'absolute', zIndex: 4, left: 12 + x.box.x * x.w, top: 12 + x.box.y * H, width: x.box.w * x.w, height: x.box.h * H,
+                               border: '6px solid #FF6B4A', borderRadius: 12,
+                               opacity: Math.min(1, be * 2), transform: `scale(${1.6 - 0.6 * Math.min(1, be)})`}} />
+                );
+              })() : null}
               <div style={{width: x.w, height: Math.round(x.w / x.ar), overflow: 'hidden', borderRadius: 12}}>
+                {/* 缓推用布局放大（改宽度 + 负边距居中），不用 transform:scale —— 同一个分块接缝问题 */}
                 <Img
                   src={staticFile(x.src)}
-                  style={{width: x.w, height: 'auto', display: 'block', transform: `scale(${kb})`}}
+                  style={{width: x.w * kb, height: 'auto', display: 'block',
+                          marginLeft: -(x.w * (kb - 1)) / 2, marginTop: -(x.w / x.ar * (kb - 1)) / 2}}
                 />
               </div>
               {x.cap ? (

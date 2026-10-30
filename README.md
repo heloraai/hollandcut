@@ -10,7 +10,8 @@ A Claude Code skill that turns raw Chinese talking-head footage into a polished 
 
 - 去重录、去口误，按你自己的停顿压气口（静音谱 + 转写对照，只删核实过的）
 - whisper.cpp 转写 → 描边白字字幕，关键词金色 + 金线描出
-- 按你选的档位加图形：章节标签、步进词条、大字数据、脑图板、全屏对比、真实截图大图（人物自动缩到左下金框圆窗）、箭头链……
+- 按你选的档位加图形：章节标签、步进词条、大字数据、脑图板、全屏对比、真实截图大图（人物自动缩到左下金框圆窗）、全屏真录屏、箭头链……
+- 整片默认 1.12 倍速（保音调），max 档开头 9 秒有堆叠钩子 + 逐句大字 + 整屏冲击 + 音效
 - Remotion 渲染 1080p，自动 QA（解码、音轨逐字节比对、黑帧 / 白闪 / 重复帧 / 单帧乱帧），交付 MP4 + SRT + 抽帧检查图
 
 ## 三档效果强度
@@ -27,6 +28,7 @@ max 的招牌时刻：
 - **大字散射标题**：品牌名 / 核心概念第一次出现时，每个字从不同方向带旋转飞进来落位，双色 + 硬阴影，可加金印章和两侧药丸
 - **圆环仪表盘**：百分比数据画成金色圆环 + 容量条
 - **结尾 CTA 卡**：名字、标语、打字机滚出的链接
+- **开头堆叠钩子**：人物两侧对称堆真素材——教程卡砸成两摞压红叉、真界面卡逐张打金勾、logo 雨堆起来再炸开、工具图标从屏幕边飞进来和大字同一帧落位；每句口播一行大字逐字飞入，落地整屏轻震，节拍上配 whoosh / 重低音 / pop 音效
 
 全片持续微动效：词条打字机 + 呼吸光、链条能量点、大图 3D 入场 + 缓推 + 扫光、磨砂段金色微尘。
 
@@ -66,6 +68,8 @@ agent 第一步只出提案（素材体检 + 画面结构 + 缺图清单），**
 git clone https://github.com/heloraai/hollandcut ~/.claude/skills/hollandcut
 # Codex 用户：克隆到 ~/.codex/skills/hollandcut
 ```
+
+更新：在仓库目录运行 `git pull`；如果提示分支分叉，运行 `git fetch origin && git reset --hard origin/main`（会丢弃本地改动）。
 
 ### 2. 装依赖
 
@@ -204,15 +208,15 @@ python3 ~/.claude/skills/hollandcut/tests/smoke.py
 
 ```
 SKILL.md                            agent 读的流程说明
-references/standards.md             验收硬规则（内容完整性 / 气口 / 字幕 / 画面 / 动效 / QA；第 10、11 条是 max / lite）
-references/motion-vocabulary.md     动效词汇表（14 族，标了档位）
-scripts/                            流水线脚本（plan.py 会拷进每个项目目录；webshot.py 截网页补图）
+references/standards.md             验收硬规则（内容完整性 / 气口 / 字幕 / 画面 / 动效 / QA；第 10、11 条是 max / lite，第 12 条是开头钩子与节奏）
+references/motion-vocabulary.md     动效词汇表（18 族，标了档位）
+scripts/                            流水线脚本（plan.py 会拷进每个项目目录；webshot.py 截网页补图；remap.py 改剪辑后换算旧秒数）
 templates/proposal.md               阶段 0 提案模板（效果强度 / 动效位置 / 缺图清单）
 templates/structure_example.py      画面结构示例（pro）
 templates/structure_max_example.py  画面结构示例（max：招牌时刻写法）
 templates/edl_rules.py, cue_rules.py  每个项目改写的剪辑规则、字幕规则
 assets/remotion/                    Remotion 工程（图形组件）
-tests/smoke.py                      冒烟测试（三档各出一片）
+tests/smoke.py                      冒烟测试（三档各出一片，外加一片开头钩子）
 ```
 
 ## 许可

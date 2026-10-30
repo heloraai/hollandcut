@@ -130,7 +130,7 @@ export const Pairs: React.FC<{pairs: any[]}> = ({pairs}) => {
   if (!g) return null;
   const out = interpolate(frame, [F(g.end), F(g.end) + 6], [1, 0], {extrapolateLeft: 'clamp', extrapolateRight: 'clamp'});
   const side = (items: any[], right: boolean) => (
-    <div style={{position: 'absolute', [right ? 'right' : 'left']: 110, top: g.y ?? 400, display: 'flex', flexDirection: 'column', alignItems: right ? 'flex-end' : 'flex-start', gap: 18, opacity: out}}>
+    <div style={{position: 'absolute', [right ? 'right' : 'left']: right ? 60 : 110, top: g.y ?? 400, display: 'flex', flexDirection: 'column', alignItems: right ? 'flex-end' : 'flex-start', gap: 18, opacity: out}}>
       {items.map((it: any, i: number) => {
         const local = frame - F(it.rf);
         if (local < 0) return null;

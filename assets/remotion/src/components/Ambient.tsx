@@ -44,7 +44,7 @@ export const PaperSweep: React.FC<{io: number}> = ({io}) => {
   );
 };
 
-/** max 招牌时刻 · 结尾 CTA 卡：右侧金框卡，名字 + 标语 + 章，打字机滚出链接。参数来自 structure.py 的 endcard(...) */
+/** max 招牌时刻 · 结尾 CTA 卡：左侧金框卡（右侧会被抖音横屏的按钮列挡住），名字 + 标语 + 章，打字机滚出链接。参数来自 structure.py 的 endcard(...) */
 export type EndCardSpec = {name: string; tagline: string; url?: string; badge?: string; start: number; end: number};
 
 export const EndCard: React.FC<{c: EndCardSpec}> = ({c}) => {
@@ -62,22 +62,20 @@ export const EndCard: React.FC<{c: EndCardSpec}> = ({c}) => {
   return (
     <div
       style={{
-        position: 'absolute', right: 96, top: 300, width: 640, fontFamily: FONT,
-        background: 'rgba(12,13,18,0.9)', border: `2.6px solid ${GOLD}`, borderRadius: 26,
+        position: 'absolute', left: 30, top: 124, width: 580, fontFamily: FONT,   /* 和章节标签左对齐 */
+        background: '#15161B', borderRadius: 26,   /* 扁平：纯色牌，无描边无光晕 */
         padding: '38px 44px 34px', opacity: Math.min(1, e * 1.4) * out,
-        transform: `translateX(${(1 - e) * 90}px) scale(${0.92 + 0.08 * e})`,
-        boxShadow: '0 26px 70px rgba(0,0,0,0.7), 0 0 44px rgba(201,162,74,0.28)',
+        transform: `translateX(${-(1 - e) * 90}px) scale(${0.92 + 0.08 * e})`,
         overflow: 'hidden',
       }}
     >
-      <span style={{position: 'absolute', top: 0, bottom: 0, left: `${sweep}%`, width: 90, background: 'linear-gradient(105deg, transparent, rgba(230,207,146,0.16), transparent)', transform: 'skewX(-18deg)', pointerEvents: 'none'}} />
       <div style={{display: 'flex', alignItems: 'center', gap: 20}}>
-        <span style={{width: 12, height: 52, background: `linear-gradient(180deg, ${GOLD_LITE}, ${GOLD})`, borderRadius: 4}} />
-        <span style={{fontSize: 58, fontWeight: 800, letterSpacing: 3, color: '#f5efe0'}}>{c.name}</span>
+        <span style={{width: 12, height: 52, background: '#F6C453', borderRadius: 4}} />
+        <span style={{fontSize: 58, fontWeight: 800, letterSpacing: 3, color: '#F5F0E6'}}>{c.name}</span>
         {c.badge ? (
           <span
             style={{
-              marginLeft: 'auto', fontSize: 24, fontWeight: 700, color: '#17130a', background: GOLD,
+              marginLeft: 'auto', fontSize: 24, fontWeight: 700, color: '#15161B', background: '#F6C453',   /* 10-18：色板金，不用 theme 的暗金 */
               border: '2px solid #8c6b21', borderRadius: 999, padding: '6px 18px',
               transform: `scale(${0.6 + 0.4 * Math.min(1, Math.max(0, tagE))})`,
             }}
@@ -86,14 +84,14 @@ export const EndCard: React.FC<{c: EndCardSpec}> = ({c}) => {
           </span>
         ) : null}
       </div>
-      <div style={{marginTop: 12, fontSize: 30, fontWeight: 700, letterSpacing: 2, color: GOLD_LITE}}>{c.tagline}</div>
+      <div style={{marginTop: 12, fontSize: 30, fontWeight: 700, letterSpacing: 2, color: '#F5F0E6'}}>{c.tagline}</div>
       {url ? (
         <>
           <div style={{height: 2, background: 'linear-gradient(90deg, rgba(201,162,74,0.7), transparent)', margin: '22px 0 18px'}} />
-          <div style={{fontFamily: '"SF Mono", Menlo, Consolas, monospace', fontSize: 29, fontWeight: 600, color: '#efe8d7', letterSpacing: 0.5}}>
+          <div style={{fontFamily: '"SF Mono", Menlo, Consolas, monospace', fontSize: 25, fontWeight: 600, color: '#efe8d7', letterSpacing: 0.3, whiteSpace: 'nowrap'}}>
             <span style={{color: GOLD_LITE}}>$ </span>
             {url.slice(0, typed)}
-            <span style={{display: 'inline-block', width: 13, height: 32, background: GOLD_LITE, verticalAlign: -5, opacity: Math.sin(f / 5) > 0 ? 1 : 0}} />
+            <span style={{display: 'inline-block', width: 12, height: 28, background: GOLD_LITE, verticalAlign: -5, opacity: Math.sin(f / 5) > 0 ? 1 : 0}} />
           </div>
         </>
       ) : null}

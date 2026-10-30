@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
-"""冒烟测试：合成一段 ~18 秒英文口播 → 走完整条流水线 → lite / pro / max 三档各出一片。能出片 = 环境 OK。
-用法：python3 tests/smoke.py [工作目录]        只测某几档：SMOKE_TIERS=max python3 tests/smoke.py
+"""冒烟测试：合成一段 ~18 秒英文口播 → 走完整条流水线 → lite / pro / max 三档各出一片，外加一片开头钩子（hook：OPEN2 堆叠 +
+分块大字 + 整屏冲击 + 音效）。能出片 = 环境 OK。
+用法：python3 tests/smoke.py [工作目录]        只测某几档：SMOKE_TIERS=max,hook python3 tests/smoke.py
 需要：tools.py 体检全 ✓，外加 espeak-ng（Linux：sudo apt install espeak-ng）或 macOS 自带的 say。
 英文合成语音只为跑通流程；中文转写质量要用 large-v3 + 实拍素材验证。
 锚点只用 base.en 稳定听写、且不是别的词子串的小写词（three 会被写成 3；day 会先命中 Today）。"""
-import os, shutil, subprocess, sys, tempfile
+import os, re, shutil, subprocess, sys, tempfile
 
 SKILL = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(SKILL, 'scripts'))
@@ -46,9 +47,25 @@ CHAINS, PAIRS, MARKS = [], [], []
 SHOWS = [show_img("shot.png", 1000, 16/9, "测试截图", "check", "week"),
          stat(5, "测试额度", "whole", "system", suffix="%", gauge=True)]
 ''',
+    'hook': '''
+TIER = "max"
+_C = lambda i, side, at: dict(src=f"open/c{i}.png", side=side, at=at)
+OPEN2 = dict(
+    tut=dict(cards=[_C(i, "LR"[i % 2], round(0.03 + 0.06 * i, 2)) for i in range(4)], strike=0.9, out=1.2),
+    work=dict(cards=[_C(4, "L", 1.4), _C(5, "R", 1.55)], done=2.2, out=2.5),
+    rain=dict(logos=[f"open/l{i}.png" for i in range(4)], at=2.6, step=0.06, burst=3.4),
+    tools=dict(items=[dict(logo=f"open/l{i}.png", name=n, side="LR"[i // 2], row=i % 2, at=3.8) for i, n in enumerate("ABCD")],
+               hop=[4.2, 4.8], heads=dict(at=5.0, L="个人", R="工作"), rows=[[5.3, "L"], [6.0, "R"]], pops={"A": 5.5}, end=7.0),
+)
+TITLES = [title("简单想法", "simple", "ideas", gold_ranges=[[2, 4]], chunks=[(0, 2, "simple"), (2, 4, "ideas")], fly=True, smooth=True)]
+IMPACTS = [(0.9, 1.05, 1), (2.2, 1.04, 0)]
+SFX = [("sfx.wav", 0.9, -10), ("sfx.wav", "build", -12)]
+CH = [("Today", "time", "开头钩子")]
+CHIPS, CHAINS, PAIRS, MARKS, SHOWS = [], [], [], [], []
+''',
 }
-TIERS = [t for t in os.environ.get('SMOKE_TIERS', 'lite,pro,max').split(',') if t]
-assert all(t in STRUCTURES for t in TIERS), f'SMOKE_TIERS 只能是 lite / pro / max：{TIERS}'
+TIERS = [t for t in os.environ.get('SMOKE_TIERS', 'lite,pro,max,hook').split(',') if t]
+assert all(t in STRUCTURES for t in TIERS), f'SMOKE_TIERS 只能是 lite / pro / max / hook：{TIERS}'
 
 
 def run(cmd, cwd=None):
@@ -91,10 +108,23 @@ if not os.path.exists(os.path.join(P, 'remotion', 'node_modules')):
     run([shutil.which('npm') or 'npm', 'install', '--no-audit', '--no-fund'], cwd=os.path.join(P, 'remotion'))
 run([FFMPEG, '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=s=1600x900', '-frames:v', '1',
      os.path.join(P, 'remotion', 'public', 'shot.png')])   # max 档大图用
+os.makedirs(os.path.join(P, 'remotion', 'public', 'open'), exist_ok=True)   # hook 档：卡片 / logo 占位图 + 一声音效
+for i in range(6):
+    run([FFMPEG, '-v', 'error', '-y', '-f', 'lavfi', '-i', 'testsrc2=s=660x530', '-frames:v', '1',
+         os.path.join(P, 'remotion', 'public', 'open', f'c{i}.png')])
+for i, c in enumerate(('red', 'green', 'blue', 'orange')):
+    run([FFMPEG, '-v', 'error', '-y', '-f', 'lavfi', '-i', f'color=c={c}:s=256x256', '-frames:v', '1',
+         os.path.join(P, 'remotion', 'public', 'open', f'l{i}.png')])
+run([FFMPEG, '-v', 'error', '-y', '-f', 'lavfi', '-i', 'sine=frequency=880:duration=0.25', os.path.join(P, 'sfx.wav')])
 for tier in TIERS:
     open(os.path.join(P, 'structure.py'), 'w', encoding='utf-8').write(STRUCTURES[tier])
     run([sys.executable, 'gen_spec.py', 'structure.py'], cwd=P)
     run([sys.executable, 'render.py', tier], cwd=P)   # render.py 自带 preflight + QA，任一项不过即非零退出
     out = os.path.join(P, 'out', f'smoke_{tier}.mp4')
     assert os.path.getsize(out) > 100_000, out
+    if 'SFX' in STRUCTURES[tier]:   # 0.9 秒那一声 880 Hz：交付件里要比母版音轨版明显响
+        band = lambda f: float(re.findall(r'RMS level dB: (\S+)', subprocess.run(
+            [FFMPEG, '-ss', '0.9', '-t', '0.25', '-i', f, '-af', 'bandpass=f=880:width_type=h:w=30,astats=metadata=0', '-f', 'null', '-'],
+            capture_output=True, text=True).stderr)[-1])
+        assert band(out[:-4] + '_sfx.mp4') > band(out) + 6, '音效没叠进交付件，或时间不对'
 print('✓ 冒烟测试通过（' + ' / '.join(TIERS) + '）：', os.path.join(P, 'out'))

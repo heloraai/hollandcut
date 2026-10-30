@@ -20,7 +20,7 @@ from tools import FFMPEG as FF, FFPROBE as FP, speech_spans, transcribe
 
 SKILL = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STEPS = ("tools.py", "detect.py", "build_edl.py", "build_recut.py", "build_cues.py", "layers.py",
-         "gen_spec.py", "preflight.py", "render.py", "spike_scan.py", "webshot.py", "preview.py", "loudnorm.py")
+         "gen_spec.py", "preflight.py", "render.py", "spike_scan.py", "webshot.py", "preview.py", "loudnorm.py", "remap.py")
 
 ap = argparse.ArgumentParser()
 ap.add_argument("--name", required=True)
@@ -71,7 +71,7 @@ for i in srcs:
 open(f"{out}/plan/transcript.md", "w", encoding="utf-8").write("\n".join(lines) + "\n")
 
 # 3. 铺 Remotion 工程骨架 + 流水线脚本（不含 node_modules）
-for f in ("package.json", "tsconfig.json", "remotion.config.ts"):
+for f in ("package.json", "tsconfig.json", "remotion.config.ts", "stills.mjs"):
     shutil.copy2(f"{SKILL}/assets/remotion/{f}", f"{out}/remotion/{f}")
 if os.path.exists(f"{out}/remotion/src"): shutil.rmtree(f"{out}/remotion/src")
 shutil.copytree(f"{SKILL}/assets/remotion/src", f"{out}/remotion/src")

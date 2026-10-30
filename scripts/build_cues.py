@@ -7,6 +7,10 @@ try:
     from cue_rules import ADD      # whisper 漏掉的句子：[(起, 止, 文字)]，母版时间，按音频手补
 except ImportError:
     ADD = []
+try:
+    from cue_rules import SPLIT    # [词]：在这个词后面断开，时间按字数比例分
+except ImportError:
+    SPLIT = []
 
 def fix(t):
     for a,b in FIX: t = t.replace(a,b)
@@ -55,8 +59,8 @@ def split_points(t, n):
                 if j > prev and ok(j) and t[j-1] in BREAK:
                     best = j; break
             if best: break
-        if best is None:                   # 退而求其次：最近的合法点
-            for off in range(0, 7):
+        if best is None:                   # 退而求其次：最近的合法点（10-26：放宽到 ±24 个字——「Google Search Console」这种长西文词整个跨过目标点时，±6 里找不到合法点会拦腰切）
+            for off in range(0, 25):
                 for j in (tgt - off, tgt + off):
                     if j > prev and ok(j):
                         best = j; break
@@ -95,6 +99,13 @@ for s_, e_, t_ in ADD:
     for g in GOLD: t_ = t_.replace(g, f"【{g}】") if f"【{g}】" not in t_ else t_
     out.append({"start": round(s_, 3), "end": round(e_, 3), "text": t_})
 out.sort(key=lambda c: c["start"])
+for w in SPLIT:
+    for i, c in enumerate(out):
+        j, n = c["text"].find(w) + len(w), len(c["text"])
+        if j >= len(w) and j < n:
+            mid = round(c["start"] + (c["end"] - c["start"]) * j / n, 3)
+            out[i:i + 1] = [dict(c, end=mid, text=c["text"][:j]), dict(c, start=mid, text=c["text"][j:])]
+            break
 # 去重叠
 for i in range(1,len(out)):
     if out[i]["start"] < out[i-1]["end"]: out[i-1]["end"] = out[i]["start"]

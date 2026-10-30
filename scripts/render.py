@@ -95,9 +95,21 @@ srt = OUT[:-4] + '.srt'
 cues = json.load(open('build/cues.json'))
 open(srt, 'w', encoding='utf-8').write('\n'.join(
     f"{i}\n{ts(c['start'])} --> {ts(c['end'])}\n{c['text'].replace('【', '').replace('】', '')}\n" for i, c in enumerate(cues, 1)))
+# 音效（structure.py 的 SFX）：叠进交付件；out/<名>.mp4 保留母版音轨版（上面 QA 对母版用的就是它）
+deliver = OUT
+if s.get('sfx'):
+    deliver = OUT[:-4] + '_sfx.mp4'
+    fmt = 'aformat=sample_fmts=fltp:sample_rates=48000:channel_layouts=stereo'
+    fc = f'[0:a]{fmt}[m];' + ''.join(f"[{k + 1}:a]{fmt},adelay={round(e['at'] * 1000)}|{round(e['at'] * 1000)},volume={e['db']}dB[s{k}];"
+                                     for k, e in enumerate(s['sfx']))
+    fc += '[m]' + ''.join(f'[s{k}]' for k in range(len(s['sfx']))) + f"amix=inputs={len(s['sfx']) + 1}:duration=first:normalize=0[a]"
+    run([FFMPEG, '-v', 'error', '-y', '-i', OUT, *[a for e in s['sfx'] for a in ('-i', e['file'])], '-filter_complex', fc,
+         '-map', '0:v', '-map', '[a]', '-c:v', 'copy', '-c:a', 'aac', '-b:a', '320k', '-movflags', '+faststart', deliver])
+    print('  音效：' + '  '.join(f"{os.path.basename(e['file'])}@{e['at']}s({e['db']}dB)" for e in s['sfx']))
 D = os.path.join(os.environ.get('DELIVER') or os.path.join(os.path.expanduser('~'), 'Downloads'), f'{NAME}_{V}')
 os.makedirs(D, exist_ok=True)
-for f in (OUT, srt, sheet):
+shutil.copy2(deliver, os.path.join(D, os.path.basename(OUT)))
+for f in (srt, sheet):
     if os.path.exists(f):
         shutil.copy2(f, D)
 print('交付:', D)
