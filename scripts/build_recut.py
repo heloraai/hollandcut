@@ -1,4 +1,4 @@
-import json, subprocess, sys
+import json, re, subprocess, sys
 from tools import FFMPEG, transcribe
 try:
     from edl_rules import HFLIP
@@ -28,8 +28,10 @@ tail = "[v][a]" if SPEED == 1 else f"[vc][ac];[vc]setpts=PTS/{SPEED}[v];[ac]atem
 fc = ';'.join(parts) + ';' + ''.join(labels) + f"concat=n={len(edl)}:v=1:a=1" + tail
 open('build/fc.txt','w').write(fc)
 ins = [a for i in keys for a in ('-i', srcs[i])]
-# ponytail: -filter_complex_script 在 ffmpeg 7+ 标记弃用但仍可用；等 ffmpeg ≥7 成为下限再换 -/filter_complex
-cmd = [FFMPEG, '-v', 'error', '-y', *ins, '-filter_complex_script', 'build/fc.txt',
+# ffmpeg 7 起用 -/filter_complex 读文件，9.0 删掉了 -filter_complex_script；老版本（Ubuntu 自带 4.x）只认后者。版本号认不出（git 构建 N-xxxx）按新版处理
+_m = re.search(r'version n?(\d+)\.', subprocess.run([FFMPEG, '-version'], capture_output=True, text=True).stdout)
+FC_OPT = ['-/filter_complex', 'build/fc.txt'] if (int(_m[1]) if _m else 99) >= 7 else ['-filter_complex_script', 'build/fc.txt']
+cmd = [FFMPEG, '-v', 'error', '-y', *ins, *FC_OPT,
        '-map', '[v]', '-map', '[a]', '-r', '30', '-c:v', 'libx264', '-crf', '18', '-preset', 'medium', '-pix_fmt', 'yuv420p',
        '-c:a', 'aac', '-b:a', '256k', '-movflags', '+faststart', 'build/master.mp4']
 print(f"拼接 {len(edl)} 段…" + (f"（{SPEED} 倍速）" if SPEED != 1 else ""))
